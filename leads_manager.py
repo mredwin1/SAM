@@ -122,6 +122,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             max_messages_per_hour = config["max_number_of_messages_to_send"] * len(config["numbers_for_send"])
             chance_to_send_messages = config["chance_to_send"]
             num_messages_to_send = calculate_messages_to_send(len(messages_to_send), execution_time, sum(numbers.values()), max_messages_per_hour, chance_to_send_messages, run_interval)
+            logger.info(f"{len(messages_to_send)} messages in queue and chose to send {num_messages_to_send} right now")
             for x in range(num_messages_to_send):
                 try:
                     message_to_send = messages_to_send.pop()
@@ -131,6 +132,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                     now = datetime.datetime.now()
                     sheet_client.update_cell(message_to_send["row_num"], time_sent_column_number, now.strftime("%m/%d/%Y %H:%M:%S"))
                     sheet_client.update_cell(message_to_send["row_num"], sender_number_column_number, number_for_sending)
+                    logger.info(f"Sent \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
                     numbers[number_for_sending] += 1
                     available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
