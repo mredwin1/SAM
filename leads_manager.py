@@ -64,18 +64,10 @@ def calculate_messages_to_send(messages_left: int, current_time: datetime.dateti
     minutes_to_hour = 60 - current_time.minute
     intervals_left = (minutes_to_hour + interval - 1) // interval
     max_allowed_this_hour = max_per_hour - total_sent_this_hour
-    if max_allowed_this_hour <= 0:
+    if intervals_left > 1 and random.randint(0, 100) >= send_probability:
         return 0
 
-    if messages_left < intervals_left:
-        num_messages_to_send = 1 if messages_left > 0 else 0
-    else:
-        num_messages_to_send = messages_left // intervals_left
-
-    # Apply send probability unless it's the last interval
-    if intervals_left > 1:
-        # Calculate the number of messages to attempt to send based on probability
-        num_messages_to_send = sum(random.randint(0, 100) < send_probability for _ in range(num_messages_to_send))
+    num_messages_to_send = messages_left // ((60 / interval) - current_time.minute // interval)
 
     num_messages_to_send = min(num_messages_to_send, max_allowed_this_hour, max_allowed_this_hour // intervals_left)
     return num_messages_to_send
@@ -150,4 +142,3 @@ if __name__ == "__main__":
     skip_trace(google_sheet_client)
 
     send_messages(google_sheet_client, master_config)
-
