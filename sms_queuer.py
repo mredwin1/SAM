@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import os
 import random
@@ -23,6 +24,19 @@ def validate_lead(lead: dict):
     return False
 
 
+def is_queue_empty_and_phone_present(lead, phone_key, queued_key):
+    return lead[queued_key] == "" and lead[phone_key] != ""
+
+
+def is_delay_met_for_phone(lead: dict, message_index: int, config: dict):
+    if message_index > 1:
+        previous_queued_key = f"SMS{message_index - 1}QueuedDateTime"
+        if lead[previous_queued_key] != "":
+            previous_queued_time = datetime.datetime.strptime(lead[previous_queued_key], "%m/%d/%Y %H:%M:%S")
+            return previous_queued_time + datetime.timedelta(days=config["delay_between_messages"]) < datetime.datetime.now()
+    return True
+
+
 def queue_message(sheet_client: GoogleSheetClient, row_num: int, message: str, recipient: str):
     now = datetime.datetime.now()
     time_sent_str = now.strftime("%m/%d/%Y %H:%M:%S")
@@ -34,6 +48,9 @@ def queue_message(sheet_client: GoogleSheetClient, row_num: int, message: str, r
 
 
 def queue_messages(sheet_client: GoogleSheetClient):
+    with open(os.path.join(script_dir, 'config.json'), 'rb') as config_file:
+        config = json.load(config_file)
+
     sheet_client.open_sheet("Message Templates")
     messages = sheet_client.read_records()
     messages = [message["Message"] for message in messages]
@@ -46,17 +63,17 @@ def queue_messages(sheet_client: GoogleSheetClient):
     queue_message_sheet_client.open_sheet("Message Queue")
     queue_last_row = queue_message_sheet_client.get_last_row()
 
-    for index, lead in enumerate(leads[:5]):
+    for index, lead in enumerate(leads):
         row_num = index + 2
         if validate_lead(lead):
-            for x in range(1, 2):
-                if lead[f"SMS{x}QueuedDateTime"] == "" and lead[f"ContactPhone{x}"] != "":
+            for message_index in range(1, 4):
+                phone_key = f"ContactPhone{message_index}"
+                queued_key = f"SMS{message_index}QueuedDateTime"
+                if is_queue_empty_and_phone_present(lead, phone_key, queued_key) or is_delay_met_for_phone(lead, message_index, config):
                     message = random.choice(messages).replace("{TargetStreet}", lead["TargetStreet"])
-                    time_sent = queue_message(queue_message_sheet_client, queue_last_row, message, lead[f"ContactPhone{x}"])
-                    sheet_client.update_cell(row_num, sheet_client.get_column_index(f"SMS{x}QueuedDateTime"), time_sent)
+                    time_sent = queue_message(queue_message_sheet_client, queue_last_row, message, lead[phone_key])
+                    sheet_client.update_cell(row_num, sheet_client.get_column_index(queued_key), time_sent)
                     queue_last_row += 1
-        else:
-            logger.warning(f"Lead not valid: {lead}")
 
 
 if __name__ == "__main__":
