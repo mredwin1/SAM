@@ -55,8 +55,6 @@ def skip_trace(sheet_client: GoogleSheetClient):
                 except Exception as e:
                     logger.error(e, exc_info=True)
                     sheet_client.update_cell(row_num, 1, "FALSE")
-            else:
-                logger.warning(f"Lead not valid: {lead}")
 
 
 def calculate_messages_to_send(messages_left: int, current_time: datetime.datetime, total_sent_this_hour: int,
@@ -117,27 +115,27 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
         except KeyError:
             logger.warning(f"Skipping processing row {row_num} due to missing columns")
 
-    # with HushedClient(config["phone_uuid"], logger) as client:
-    available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
-    if available_numbers:
-        run_interval = config["leads_manager_run_interval"]
-        max_messages_per_hour = config["max_number_of_messages_to_send"] * len(config["numbers_for_send"])
-        chance_to_send_messages = config["chance_to_send"]
-        num_messages_to_send = calculate_messages_to_send(len(messages_to_send), execution_time, sum(numbers.values()), max_messages_per_hour, chance_to_send_messages, run_interval)
-        for x in range(num_messages_to_send):
-            try:
-                message_to_send = messages_to_send.pop()
-                number_for_sending = random.choice(available_numbers)
+    with HushedClient(config["phone_uuid"], logger) as client:
+        available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
+        if available_numbers:
+            run_interval = config["leads_manager_run_interval"]
+            max_messages_per_hour = config["max_number_of_messages_to_send"] * len(config["numbers_for_send"])
+            chance_to_send_messages = config["chance_to_send"]
+            num_messages_to_send = calculate_messages_to_send(len(messages_to_send), execution_time, sum(numbers.values()), max_messages_per_hour, chance_to_send_messages, run_interval)
+            for x in range(num_messages_to_send):
+                try:
+                    message_to_send = messages_to_send.pop()
+                    number_for_sending = random.choice(available_numbers)
 
-                # client.send_sms(number_for_sending, message_to_send["recipient"], message_to_send["message"])
-                now = datetime.datetime.now()
-                sheet_client.update_cell(message_to_send["row_num"], time_sent_column_number, now.strftime("%m/%d/%Y %H:%M:%S"))
-                sheet_client.update_cell(message_to_send["row_num"], sender_number_column_number, number_for_sending)
+                    client.send_sms(number_for_sending, message_to_send["recipient"], message_to_send["message"])
+                    now = datetime.datetime.now()
+                    sheet_client.update_cell(message_to_send["row_num"], time_sent_column_number, now.strftime("%m/%d/%Y %H:%M:%S"))
+                    sheet_client.update_cell(message_to_send["row_num"], sender_number_column_number, number_for_sending)
 
-                numbers[number_for_sending] += 1
-                available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
-            except IndexError:
-                pass
+                    numbers[number_for_sending] += 1
+                    available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
+                except IndexError:
+                    pass
 
 
 if __name__ == "__main__":
