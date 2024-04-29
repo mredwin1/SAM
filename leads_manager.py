@@ -115,7 +115,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
         except KeyError:
             logger.warning(f"Skipping processing row {row_num} due to missing columns")
 
-    with HushedClient(config["phone_uuid"], logger) as client:
+    with HushedClient(config["phone_uuid"], logger, config["appium_url"]) as client:
         available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
         if available_numbers:
             run_interval = config["leads_manager_run_interval"]

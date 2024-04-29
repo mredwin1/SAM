@@ -25,6 +25,7 @@ class AppiumClient:
         uuid: str,
         capabilities: dict,
         logger: logging.Logger,
+        appium_url: str,
         system_port: int = None,
         mjpeg_server_port: int = None
     ):
@@ -41,12 +42,11 @@ class AppiumClient:
         if mjpeg_server_port:
             capabilities["mjpegServerPort"] = mjpeg_server_port
 
+        self.appium_url = appium_url
         self.capabilities = capabilities
         self.capabilities_options = UiAutomator2Options().load_capabilities(
             capabilities
         )
-
-    APPIUM_SERVER_URL = "http://136.35.206.223:4723"
 
     def __enter__(self):
         self.open()
@@ -59,7 +59,7 @@ class AppiumClient:
     def open(self):
         """Used to open the appium web driver session"""
         self.driver = webdriver.Remote(
-            self.APPIUM_SERVER_URL, options=self.capabilities_options
+            self.appium_url, options=self.capabilities_options
         )
 
     def close(self):
@@ -276,7 +276,7 @@ class AppiumClient:
 
 
 class HushedClient(AppiumClient):
-    def __init__(self, uuid: str, logger: logging.Logger):
+    def __init__(self, uuid: str, logger: logging.Logger, appium_url: str):
         capabilities = dict(
             platformName="Android",
             automationName="uiautomator2",
