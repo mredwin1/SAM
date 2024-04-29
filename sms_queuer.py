@@ -1,9 +1,11 @@
 import datetime
 import logging
+import os
 import random
 
 from clients import GoogleSheetClient
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger("sms_queuer_logger")
 file_handler = logging.FileHandler("sms_queuer.log")
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
@@ -40,7 +42,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
 
     leads = sheet_client.read_records()
 
-    queue_message_sheet_client = GoogleSheetClient("credentials-file.json", "SAM")
+    queue_message_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM")
     queue_message_sheet_client.open_sheet("Message Queue")
     queue_last_row = queue_message_sheet_client.get_last_row()
 
@@ -58,5 +60,5 @@ def queue_messages(sheet_client: GoogleSheetClient):
 
 
 if __name__ == "__main__":
-    google_sheet_client = GoogleSheetClient("credentials-file.json", "SAM")
+    google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM")
     queue_messages(google_sheet_client)

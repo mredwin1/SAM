@@ -1,10 +1,12 @@
 import datetime
 import json
 import logging
+import os
 import random
 
 from clients import HushedClient, GoogleSheetClient, BatchDataClient
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger("leads_manager_logger")
 file_handler = logging.FileHandler("leads_manager.log")
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
@@ -27,7 +29,7 @@ def skip_trace(sheet_client: GoogleSheetClient):
 
     leads = sheet_client.read_records()
 
-    with BatchDataClient(logger) as client:
+    with BatchDataClient(logger, os.path.join(script_dir, "config.json")) as client:
         for index, lead in enumerate(leads):
             row_num = index + 2
             if validate_lead(lead):
@@ -141,10 +143,10 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
 
 
 if __name__ == "__main__":
-    with open('config.json', 'rb') as config_file:
+    with open(os.path.join(script_dir, 'config.json'), 'rb') as config_file:
         master_config = json.load(config_file)
 
-    google_sheet_client = GoogleSheetClient("credentials-file.json", "SAM")
+    google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM")
     skip_trace(google_sheet_client)
 
     send_messages(google_sheet_client, master_config)
