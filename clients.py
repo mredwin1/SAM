@@ -287,7 +287,7 @@ class HushedClient(AppiumClient):
             noReset=True,
             forceAppLaunch=True,
         )
-        super(HushedClient, self).__init__(uuid, capabilities, logger)
+        super(HushedClient, self).__init__(uuid, capabilities, logger, appium_url)
 
     def go_to_messages_screen(self, number: str):
         number_xpath = f'//android.widget.TextView[@resource-id="com.hushed.release:id/drawer_number_subtitle" and @text="{number}"]'
