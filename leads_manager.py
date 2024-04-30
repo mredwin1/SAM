@@ -3,8 +3,9 @@ import json
 import logging
 import os
 import random
+import time
 
-from clients import GoogleSheetClient, BatchDataClient, HushedClient
+from clients import GoogleSheetClient, BatchDataClient
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger("leads_manager_logger")
@@ -51,6 +52,10 @@ def skip_trace(sheet_client: GoogleSheetClient):
                             sheet_client.update_cell(row_num, 16, traced_phone_numbers[2])
                         except IndexError:
                             pass
+
+                        if index % 19:
+                            time.sleep(60)
+
                     else:
                         logger.warning(f"No phone numbers found for lead: {lead}")
                         sheet_client.update_cell(row_num, 1, "FALSE")
@@ -123,6 +128,9 @@ def queue_messages(sheet_client: GoogleSheetClient):
                     time_queued = queue_message(queue_message_sheet_client, queue_last_row, message, lead[phone_key])
                     sheet_client.update_cell(row_num, sheet_client.get_column_index(queued_key), time_queued)
                     queue_last_row += 1
+
+        if index % 19:
+            time.sleep(60)
 
 
 if __name__ == "__main__":
