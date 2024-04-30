@@ -14,7 +14,7 @@ logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
 
 
-async def get_wyan_code_violation(sheet_client: GoogleSheetClient):
+async def get_wyan_code_violation(sheet_client: GoogleSheetClient, config: dict):
     sheet_client.open_sheet('Leads Master')
     target_street_col_num = sheet_client.get_column_index("TargetStreet")
     target_city_col_num = sheet_client.get_column_index("TargetCity")
@@ -26,7 +26,7 @@ async def get_wyan_code_violation(sheet_client: GoogleSheetClient):
     contact_zip_col_num = sheet_client.get_column_index("ContactZip")
 
     last_row = sheet_client.get_last_row()
-    async with WYANGovClient(logger, width=1920, height=1920) as client:
+    async with WYANGovClient(config["chromium_path"], logger, width=1920, height=1920) as client:
         leads = await client.get_code_violations()
 
         for index, lead in enumerate(leads):
@@ -48,4 +48,4 @@ if __name__ == "__main__":
         master_config = json.load(config_file)
 
     google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
-    asyncio.run(get_wyan_code_violation(google_sheet_client))
+    asyncio.run(get_wyan_code_violation(google_sheet_client, master_config))

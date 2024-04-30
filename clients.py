@@ -290,7 +290,7 @@ class AppiumClient:
 
 
 class BasePuppeteerClient:
-    def __init__(self, logger: logging.Logger, width: int = 800, height: int = 600):
+    def __init__(self, executable_path: str, logger: logging.Logger, width: int = 800, height: int = 600):
         """
         Initializes the BasePuppeteerClient.
 
@@ -305,6 +305,7 @@ class BasePuppeteerClient:
         self.page: Union[Page, None] = None
         self.cursor = None
         self.recovery_attempted = False
+        self.executable_path = executable_path
 
     async def __aenter__(self) -> "BasePuppeteerClient":
         """Enters the context, starting the Puppeteer browser."""
@@ -322,7 +323,7 @@ class BasePuppeteerClient:
         """Asynchronously starts the Puppeteer browser and sets the page."""
         self.browser = await pyppeteer.launch(
             headless=True,
-            executablePath="C:\Program Files\Google\Chrome\Application\chrome.exe",
+            executablePath=self.executable_path,
             defaultViewport={
                 "width": self.width,
                 "height": self.height
