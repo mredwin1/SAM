@@ -15,7 +15,7 @@ logger.setLevel(logging.INFO)
 
 
 async def get_wyan_code_violation(sheet_client: GoogleSheetClient):
-    sheet_client.open_sheet('Tester')
+    sheet_client.open_sheet('Leads Master')
     target_street_col_num = sheet_client.get_column_index("TargetStreet")
     target_city_col_num = sheet_client.get_column_index("TargetCity")
     target_state_col_num = sheet_client.get_column_index("TargetState")
