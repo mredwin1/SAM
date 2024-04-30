@@ -786,6 +786,11 @@ class WYANGovClient(BasePuppeteerClient):
         "LandmarkName"
     ]
 
+    IGNORED_CASE_PREFIX = [
+        "TOW",
+        "GRA"
+    ]
+
     def parse_address(self, address_str: str):
         street_str = ""
         parsed_address = usaddress.parse(address_str)
@@ -809,9 +814,13 @@ class WYANGovClient(BasePuppeteerClient):
 
         return parsed_address_dict
 
+    def check_case_number(self, case_number: str):
+        for case_prefix in self.IGNORED_CASE_PREFIX:
+            if case_number.startswith(case_prefix):
+                return True
+
     async def get_code_violations(self):
         yesterday = datetime.today() - timedelta(days=1)
-        print(yesterday)
         await self.page.goto("https://mauwi.wycokck.org/CitizenAccess/Welcome.aspx")
         await self.sleep(3)
 
@@ -831,14 +840,21 @@ class WYANGovClient(BasePuppeteerClient):
             await self.page.keyboard.press("PageDown")
             await self.page.keyboard.press("PageDown")
             await self.page.keyboard.press("PageDown")
-            address_elements = await self.find_all('[id$="_lblAddress"]')
-            for address_element in address_elements:
-                address = await self.page.evaluate('(element) => element.textContent', address_element)
-                addresses.append(self.parse_address(address))
+
+            code_violations = await self.find_all(".ACA_TabRow_Odd, .ACA_TabRow_Even")
+
+            for code_violation in code_violations:
+                case_number_element = await code_violation.querySelector('[id$="PermitNumber"]')
+                case_number = await self.page.evaluate('(element) => element.textContent', case_number_element)
+
+                if not self.check_case_number(case_number):
+                    address_element = await code_violation.querySelector('[id$="_lblAddress"]')
+                    address = await self.page.evaluate('(element) => element.textContent', address_element)
+                    addresses.append(self.parse_address(address))
 
             pagination_buttons = await self.find_all('.aca_pagination_PrevNext')
-
             await pagination_buttons[-1].click()
+
             await self.sleep(2, 4)
 
         return addresses
