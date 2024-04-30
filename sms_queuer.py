@@ -24,7 +24,7 @@ def validate_lead(lead: dict):
     return False
 
 
-def is_queue_empty_and_phone_present(lead, phone_key, queued_key):
+def not_queued_and_phone_present(lead, phone_key, queued_key):
     return lead[queued_key] == "" and lead[phone_key] != ""
 
 
@@ -38,13 +38,17 @@ def is_delay_met_for_phone(lead: dict, message_index: int, config: dict):
 
 
 def queue_message(sheet_client: GoogleSheetClient, row_num: int, message: str, recipient: str):
-    now = datetime.datetime.now()
-    time_sent_str = now.strftime("%m/%d/%Y %H:%M:%S")
-    sheet_client.update_cell(row_num, 1, message)
-    sheet_client.update_cell(row_num, 2, recipient)
-    sheet_client.update_cell(row_num, 3, time_sent_str)
+    message_col_num = sheet_client.get_column_index("Message")
+    recipient_col_num = sheet_client.get_column_index("Recipient")
+    time_queued_col_num = sheet_client.get_column_index("DateTimeQueued")
 
-    return time_sent_str
+    now = datetime.datetime.now()
+    time_queued_str = now.strftime("%m/%d/%Y %H:%M:%S")
+    sheet_client.update_cell(row_num, message_col_num, message)
+    sheet_client.update_cell(row_num, recipient_col_num, recipient)
+    sheet_client.update_cell(row_num, time_queued_col_num, time_queued_str)
+
+    return time_queued_str
 
 
 def queue_messages(sheet_client: GoogleSheetClient):
@@ -69,10 +73,10 @@ def queue_messages(sheet_client: GoogleSheetClient):
             for message_index in range(1, 4):
                 phone_key = f"ContactPhone{message_index}"
                 queued_key = f"SMS{message_index}QueuedDateTime"
-                if is_queue_empty_and_phone_present(lead, phone_key, queued_key) or is_delay_met_for_phone(lead, message_index, config):
+                if not_queued_and_phone_present(lead, phone_key, queued_key) and is_delay_met_for_phone(lead, message_index, config):
                     message = random.choice(messages).replace("{TargetStreet}", lead["TargetStreet"])
-                    time_sent = queue_message(queue_message_sheet_client, queue_last_row, message, lead[phone_key])
-                    sheet_client.update_cell(row_num, sheet_client.get_column_index(queued_key), time_sent)
+                    time_queued = queue_message(queue_message_sheet_client, queue_last_row, message, lead[phone_key])
+                    sheet_client.update_cell(row_num, sheet_client.get_column_index(queued_key), time_queued)
                     queue_last_row += 1
 
 
