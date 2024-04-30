@@ -7,8 +7,8 @@ import random
 from clients import GoogleSheetClient, HushedClient
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-logger = logging.getLogger("leads_manager_logger")
-file_handler = logging.FileHandler("leads_manager.log")
+logger = logging.getLogger("send_sms_logger")
+file_handler = logging.FileHandler("send_sms.log")
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
