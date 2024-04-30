@@ -415,10 +415,6 @@ class BatchDataClient:
         body = {
             "requests": [
                 {
-                    "name": {
-                        "first": first_name,
-                        "last": last_name
-                    },
                     "propertyAddress": {
                         "city": city,
                         "street": street,
@@ -429,11 +425,15 @@ class BatchDataClient:
             ]
         }
 
-        phone_numbers = []
+        if first_name and last_name:
+            body["name"] = {
+                "first": first_name,
+                "last": last_name
+            }
 
+        phone_numbers = []
         try:
             response = requests.post(f"{self.BASE_URL}/property/skip-trace", json=body, headers=headers).json()
-            print(response)
             people = response.get("results", {}).get("persons", [])
 
             for person in people:
