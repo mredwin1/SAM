@@ -13,6 +13,7 @@ chardet = "*"
 pyppeteer = "*"
 python-ghost-cursor = "*"
 usaddress = "*"
+scipy = "*"
 
 [dev-packages]
 
