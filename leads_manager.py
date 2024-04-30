@@ -53,7 +53,7 @@ def skip_trace(sheet_client: GoogleSheetClient):
                         except IndexError:
                             pass
 
-                        if index % 19 == 0 and index != 0:
+                        if index % 14 == 0 and index != 0:
                             time.sleep(60)
 
                     else:
@@ -129,7 +129,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
                     sheet_client.update_cell(row_num, sheet_client.get_column_index(queued_key), time_queued)
                     queue_last_row += 1
 
-        if index % 19 == 0 and index != 0:
+        if index % 14 == 0 and index != 0:
             time.sleep(60)
 
 
