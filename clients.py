@@ -825,11 +825,14 @@ class WYANGovClient(BasePuppeteerClient):
         await self.sleep(3)
 
         await self.click('a[title="Property Maintenance"]')
-        await self.sleep(2)
+        await self.sleep(5)
 
         start_date_elem = await self.find('input[name="ctl00$PlaceHolderMain$generalSearchForm$txtGSStartDate"]')
+        end_date_elem = await self.find('input[name="ctl00$PlaceHolderMain$generalSearchForm$txtGSEndDate"]')
         await self.page.evaluate('(element, value) => { element.value = value; }', start_date_elem,
                                    yesterday.strftime("%m/%d/%Y"))
+        await self.page.evaluate('(element, value) => { element.value = value; }', end_date_elem,
+                                 yesterday.strftime("%m/%d/%Y"))
 
         await self.click('a[id="ctl00_PlaceHolderMain_btnNewSearch"]')
         await self.sleep(4)
