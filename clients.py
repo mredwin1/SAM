@@ -554,7 +554,6 @@ class BasePuppeteerClient:
                 wait_for_selector=5000,
             )
 
-
         await self.sleep(0.1)
 
     async def type(
@@ -801,15 +800,15 @@ class WYANGovClient(BasePuppeteerClient):
 
         for label in self.STREET_LABELS:
             try:
-                street_str += f"{address_dict[label]} "
+                street_str += f"{address_dict[label].title()} "
             except KeyError:
                 pass
 
         parsed_address_dict = {
-            "street_name": street_str.strip().replace(",", ""),
-            "city": address_dict.get("PlaceName"),
+            "street_name": street_str.strip().replace(",", "").title(),
+            "city": address_dict.get("PlaceName").title(),
             "state": address_dict.get("StateName"),
-            "zipcode": address_dict.get("ZipCode")
+            "zipcode": address_dict.get("ZipCode").title()
         }
 
         return parsed_address_dict
@@ -822,7 +821,7 @@ class WYANGovClient(BasePuppeteerClient):
     async def get_code_violations(self):
         yesterday = datetime.today() - timedelta(days=1)
         await self.page.goto("https://mauwi.wycokck.org/CitizenAccess/Welcome.aspx")
-        await self.sleep(3)
+        await self.sleep(5)
 
         await self.click('a[title="Property Maintenance"]')
         await self.sleep(5)
@@ -839,7 +838,7 @@ class WYANGovClient(BasePuppeteerClient):
 
         addresses = []
         page_elements = await self.find_all('.aca_pagination_td')
-        for _ in range(len(page_elements[2:-1]) - 1):
+        for _ in range(len(page_elements[2:-1])):
             await self.page.keyboard.press("PageDown")
             await self.page.keyboard.press("PageDown")
             await self.page.keyboard.press("PageDown")
@@ -934,8 +933,8 @@ class GoogleSheetClient:
     def __init__(self, credentials_file, spreadsheet_name, logger: logging.Logger):
         self.credentials_file = credentials_file
         self.spreadsheet_name = spreadsheet_name
-        self.client = None
-        self.sheet = None
+        self.client: Union[None, gspread.Client] = None
+        self.sheet: Union[None, gspread.Worksheet] = None
         self.logger = logger
 
         # Define the scope of the application

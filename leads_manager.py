@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import random
-import time
 
 from clients import GoogleSheetClient, BatchDataClient
 
@@ -25,14 +24,29 @@ def validate_lead(lead: dict):
     return False
 
 
+def extend_and_add(lst, index, value, filler=""):
+    # Extend the list with the filler value up to the required index
+    if index >= len(lst):
+        lst.extend([filler] * (index - len(lst) + 1))
+
+    # Set the value at the desired index
+    lst[index] = value
+
+    return lst
+
+
 def skip_trace(sheet_client: GoogleSheetClient):
     sheet_client.open_sheet("Leads Master")
+    contact_phone1_col_num = sheet_client.get_column_index("ContactPhone1")
+    contact_phone2_col_num = sheet_client.get_column_index("ContactPhone2")
+    contact_phone3_col_num = sheet_client.get_column_index("ContactPhone3")
+    skip_trace_result_col_num = sheet_client.get_column_index("SkipTraceSuccess")
 
     leads = sheet_client.read_records()
-
+    values = []
     with BatchDataClient(logger, os.path.join(script_dir, "config.json")) as client:
         for index, lead in enumerate(leads):
-            row_num = index + 2
+            leads_lst = [value for value in lead.values()]
             if validate_lead(lead):
                 try:
                     traced_phone_numbers = client.skip_trace(
@@ -45,23 +59,21 @@ def skip_trace(sheet_client: GoogleSheetClient):
                     )
 
                     if traced_phone_numbers:
-                        sheet_client.update_cell(row_num, 1, "TRUE")
+                        extend_and_add(leads_lst, skip_trace_result_col_num - 1, "TRUE")
                         try:
-                            sheet_client.update_cell(row_num, 12, traced_phone_numbers[0])
-                            sheet_client.update_cell(row_num, 14, traced_phone_numbers[1])
-                            sheet_client.update_cell(row_num, 16, traced_phone_numbers[2])
+                            extend_and_add(leads_lst, contact_phone1_col_num - 1, traced_phone_numbers[0])
+                            extend_and_add(leads_lst, contact_phone2_col_num - 1, traced_phone_numbers[1])
+                            extend_and_add(leads_lst, contact_phone3_col_num - 1, traced_phone_numbers[2])
                         except IndexError:
                             pass
-
-                        if index % 14 == 0 and index != 0:
-                            time.sleep(60)
-
                     else:
                         logger.warning(f"No phone numbers found for lead: {lead}")
-                        sheet_client.update_cell(row_num, 1, "FALSE")
+                        extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
                 except Exception as e:
                     logger.error(e, exc_info=True)
-                    sheet_client.update_cell(row_num, 1, "FALSE")
+                    extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
+            values.append(leads_lst)
+    sheet_client.sheet.update(values, "A2")
 
 
 def validate_phones_lead(lead: dict):
@@ -87,20 +99,6 @@ def is_delay_met_for_phone(lead: dict, message_index: int, config: dict):
     return True
 
 
-def queue_message(sheet_client: GoogleSheetClient, row_num: int, message: str, recipient: str):
-    message_col_num = sheet_client.get_column_index("Message")
-    recipient_col_num = sheet_client.get_column_index("Recipient")
-    time_queued_col_num = sheet_client.get_column_index("DateTimeQueued")
-
-    now = datetime.datetime.now()
-    time_queued_str = now.strftime("%m/%d/%Y %H:%M:%S")
-    sheet_client.update_cell(row_num, message_col_num, message)
-    sheet_client.update_cell(row_num, recipient_col_num, recipient)
-    sheet_client.update_cell(row_num, time_queued_col_num, time_queued_str)
-
-    return time_queued_str
-
-
 def queue_messages(sheet_client: GoogleSheetClient):
     with open(os.path.join(script_dir, 'config.json'), 'rb') as config_file:
         config = json.load(config_file)
@@ -116,21 +114,38 @@ def queue_messages(sheet_client: GoogleSheetClient):
     queue_message_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
     queue_message_sheet_client.open_sheet("Message Queue")
     queue_last_row = queue_message_sheet_client.get_last_row()
-
+    message_col_num = queue_message_sheet_client.get_column_index("Message")
+    recipient_col_num = queue_message_sheet_client.get_column_index("Recipient")
+    time_queued_col_num = queue_message_sheet_client.get_column_index("DateTimeQueued")
+    now = datetime.datetime.now()
+    time_queued_str = now.strftime("%m/%d/%Y %H:%M:%S")
+    msg_queued_col_numbers = {
+        1: sheet_client.get_column_index("SMS1QueuedDateTime"),
+        2: sheet_client.get_column_index("SMS2QueuedDateTime"),
+        3: sheet_client.get_column_index("SMS3QueuedDateTime"),
+    }
+    leads_values = []
+    message_queue_value = []
     for index, lead in enumerate(leads):
-        row_num = index + 2
+        leads_lst = [value for value in lead.values()]
         if validate_phones_lead(lead):
             for message_index in range(1, 4):
                 phone_key = f"ContactPhone{message_index}"
                 queued_key = f"SMS{message_index}QueuedDateTime"
                 if not_queued_and_phone_present(lead, phone_key, queued_key) and is_delay_met_for_phone(lead, message_index, config):
+                    message_queue_lst = []
                     message = random.choice(messages).replace("{TargetStreet}", lead["TargetStreet"])
-                    time_queued = queue_message(queue_message_sheet_client, queue_last_row, message, lead[phone_key])
-                    sheet_client.update_cell(row_num, sheet_client.get_column_index(queued_key), time_queued)
-                    queue_last_row += 1
+                    extend_and_add(message_queue_lst, message_col_num - 1, message)
+                    extend_and_add(message_queue_lst, recipient_col_num - 1, lead[phone_key])
+                    extend_and_add(message_queue_lst, time_queued_col_num - 1, time_queued_str)
+                    extend_and_add(leads_lst, msg_queued_col_numbers[message_index] - 1, time_queued_str)
 
-        if index % 14 == 0 and index != 0:
-            time.sleep(60)
+                    lead[queued_key] = time_queued_str
+                    message_queue_value.append(message_queue_lst)
+
+        leads_values.append(leads_lst)
+    sheet_client.sheet.update(leads_values, "A2")
+    queue_message_sheet_client.sheet.update(message_queue_value, f"A{queue_last_row}")
 
 
 if __name__ == "__main__":

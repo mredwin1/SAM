@@ -2,9 +2,9 @@ import asyncio
 import json
 import logging
 import os
-import time
 
 from clients import WYANGovClient, GoogleSheetClient
+from datetime import datetime
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger("leads_generator_logger")
@@ -24,24 +24,37 @@ async def get_wyan_code_violation(sheet_client: GoogleSheetClient, config: dict)
     contact_city_col_num = sheet_client.get_column_index("ContactCity")
     contact_state_col_num = sheet_client.get_column_index("ContactState")
     contact_zip_col_num = sheet_client.get_column_index("ContactZip")
+    datetime_added_col_num = sheet_client.get_column_index("DateTimeAdded")
 
     last_row = sheet_client.get_last_row()
+    now = datetime.now()
+    values = []
     async with WYANGovClient(config["chromium_path"], logger, width=1920, height=1920) as client:
         leads = await client.get_code_violations()
-
         for index, lead in enumerate(leads):
-            sheet_client.update_cell(last_row, target_street_col_num, lead["street_name"])
-            sheet_client.update_cell(last_row, target_city_col_num, lead["city"])
-            sheet_client.update_cell(last_row, target_state_col_num, lead["state"])
-            sheet_client.update_cell(last_row, target_zip_col_num, lead["zipcode"])
-            sheet_client.update_cell(last_row, contact_street_col_num, lead["street_name"])
-            sheet_client.update_cell(last_row, contact_city_col_num, lead["city"])
-            sheet_client.update_cell(last_row, contact_state_col_num, lead["state"])
-            sheet_client.update_cell(last_row, contact_zip_col_num, lead["zipcode"])
-            last_row += 1
+            lead_values = [""] * max(
+                target_street_col_num,
+                target_city_col_num,
+                target_state_col_num,
+                target_zip_col_num,
+                contact_street_col_num,
+                contact_city_col_num,
+                contact_state_col_num,
+                contact_zip_col_num,
+                datetime_added_col_num
+            )
+            lead_values[target_street_col_num - 1] = lead["street_name"]
+            lead_values[target_city_col_num - 1] = lead["city"]
+            lead_values[target_state_col_num - 1] = lead["state"]
+            lead_values[target_zip_col_num - 1] = lead["zipcode"]
+            lead_values[contact_street_col_num - 1] = lead["street_name"]
+            lead_values[contact_city_col_num - 1] = lead["city"]
+            lead_values[contact_state_col_num - 1] = lead["state"]
+            lead_values[contact_zip_col_num - 1] = lead["zipcode"]
+            lead_values[datetime_added_col_num - 1] = now.strftime("%m/%d/%Y %H:%M:%S")
+            values.append(lead_values)
+        sheet_client.sheet.update(values, f"A{last_row}")
 
-            if index % 6 == 0 and index != 0:
-                time.sleep(60)
 
 if __name__ == "__main__":
     with open(os.path.join(script_dir, 'config.json'), 'rb') as config_file:
