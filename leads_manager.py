@@ -39,8 +39,8 @@ def skip_trace(sheet_client: GoogleSheetClient):
                         str(lead["ContactStreet"]),
                         str(lead["ContactState"]),
                         str(lead["ContactZip"]),
-                        str(lead["ContactFirstName"]),
-                        str(lead["ContactLastName"])
+                        first_name=str(lead["ContactFirstName"]),
+                        last_name=str(lead["ContactLastName"])
                     )
 
                     if traced_phone_numbers:
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     with open(os.path.join(script_dir, 'config.json'), 'rb') as config_file:
         master_config = json.load(config_file)
 
-    google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM")
-    skip_trace(google_sheet_client)
+    google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
 
-    send_messages(google_sheet_client, master_config)
+    skip_trace(google_sheet_client)
+    # send_messages(google_sheet_client, master_config)
