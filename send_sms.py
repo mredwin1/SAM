@@ -47,8 +47,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
     messages_to_send = []
     execution_time = datetime.datetime.now()
 
-    numbers = {number: 0 for number in config["numbers_for_send"]}
-    logger.info(numbers)
+    numbers = {number.replace("+", ""): 0 for number in config["numbers_for_send"]}
 
     for index, message in enumerate(messages):
         row_num = index + 2
@@ -66,16 +65,16 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             elif message["DateTimeSent"] and sender_number:
                 try:
                     datetime_sent = datetime.datetime.strptime(datetime_sent_str, "%m/%d/%Y %H:%M:%S")
-
                     if datetime_sent.year == execution_time.year and datetime_sent.month == execution_time.month and datetime_sent.day == execution_time.day and datetime_sent.hour == execution_time.hour:
                         numbers[sender_number] += 1
-                except KeyError:
-                    pass
+                except KeyError as e:
+                    logger.warning(e, exc_info=True)
                 except ValueError:
                     logger.error(f"Could not parse DateTimeSent in row number {row_num}")
         except KeyError:
             logger.warning(f"Skipping processing row {row_num} due to missing columns")
 
+    logger.info(f"Message counts: {numbers}")
     queued_messages = [[value for value in queued_message.values()] for queued_message in messages]
     with HushedClient(config["phone_uuid"], logger, config["appium_url"]) as client:
         available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
@@ -91,7 +90,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                     number_for_sending = random.choice(available_numbers)
                     logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
-                    client.send_sms(number_for_sending, message_to_send["recipient"], message_to_send["message"])
+                    # client.send_sms(number_for_sending, message_to_send["recipient"], message_to_send["message"])
                     now = datetime.datetime.now()
 
                     queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], time_sent_column_number - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
@@ -102,7 +101,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                     available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
                 except IndexError as e:
                     logger.error(e, exc_info=True)
-    sheet_client.sheet.update(queued_messages, "A2")
+    # sheet_client.sheet.update(queued_messages, "A2")
 
 
 if __name__ == "__main__":
