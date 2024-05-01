@@ -895,7 +895,6 @@ class HushedClient(AppiumClient):
                 number_selected = self.is_present(AppiumBy.XPATH, selected_number_xpath)
                 tries += 1
 
-            print(number_xpath)
             if not self.is_present(AppiumBy.XPATH, number_xpath) and not number_selected:
                 hamburger_menu = self.locate(AppiumBy.ID, "com.hushed.release:id/btnHamburger")
                 self.click(hamburger_menu)
