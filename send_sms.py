@@ -84,7 +84,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             chance_to_send_messages = config["chance_to_send"]
             num_messages_to_send = calculate_messages_to_send(len(messages_to_send), execution_time, sum(numbers.values()), max_messages_per_hour, chance_to_send_messages, run_interval)
             logger.info(f"{len(messages_to_send)} messages in queue and chose to send {num_messages_to_send} right now")
-            for x in range(3):
+            for x in range(num_messages_to_send):
                 try:
                     message_to_send = messages_to_send.pop(0)
                     number_for_sending = random.choice(available_numbers)
@@ -98,8 +98,8 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
 
                     numbers[number_for_sending] += 1
                     available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
-                except IndexError:
-                    pass
+                except IndexError as e:
+                    logger.error(e, exc_info=True)
     sheet_client.sheet.update(queued_messages, "A2")
 
 
