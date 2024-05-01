@@ -90,7 +90,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                     number_for_sending = random.choice(available_numbers)
                     logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
-                    # client.send_sms(number_for_sending, message_to_send["recipient"], message_to_send["message"])
+                    client.send_sms(number_for_sending, message_to_send["recipient"], message_to_send["message"])
                     now = datetime.datetime.now()
 
                     queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], time_sent_column_number - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
@@ -101,7 +101,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                     available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
                 except IndexError as e:
                     logger.error(e, exc_info=True)
-    # sheet_client.sheet.update(queued_messages, "A2")
+    sheet_client.sheet.update(queued_messages, "A2")
 
 
 if __name__ == "__main__":
