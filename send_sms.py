@@ -85,7 +85,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             chance_to_send_messages = config["chance_to_send"]
             num_messages_to_send = calculate_messages_to_send(len(messages_to_send), execution_time, sum(numbers.values()), max_messages_per_hour, chance_to_send_messages, run_interval)
             logger.info(f"{len(messages_to_send)} messages in queue and chose to send {num_messages_to_send} right now")
-            for x in range(num_messages_to_send):
+            for x in range(2):
                 try:
                     logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
                     message_to_send = messages_to_send.pop(0)
