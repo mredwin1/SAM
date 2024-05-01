@@ -878,25 +878,28 @@ class HushedClient(AppiumClient):
 
     def go_to_messages_screen(self, number: str):
         number_xpath = f'//android.widget.TextView[@resource-id="com.hushed.release:id/drawer_number_subtitle" and @text="{number}"]'
+        selected_number_xpath = f'//android.widget.TextView[@resource-id="com.hushed.release:id/tvTitle" and @text="{number}"]'
         if self.is_present(AppiumBy.XPATH, number_xpath):
             number_btn = self.locate(AppiumBy.XPATH, number_xpath)
             self.click(number_btn)
             return
 
         on_message_screen = self.is_present(AppiumBy.XPATH, "//android.widget.LinearLayout[@resource-id='com.hushed.release:id/collapsibleHeader']//android.widget.TextView[@text='Messages']")
-        number_selected = self.is_present(AppiumBy.XPATH, f'//android.widget.TextView[@resource-id="com.hushed.release:id/tvTitle" and @text="{number}"]')
+        number_selected = self.is_present(AppiumBy.XPATH, selected_number_xpath)
         if not (on_message_screen and number_selected):
             back_btn_id = "com.hushed.release:id/headerButtonLeft"
             tries = 0
-            while self.is_present(AppiumBy.ID, back_btn_id) and tries < 3:
+            while self.is_present(AppiumBy.ID, back_btn_id) and not number_selected and tries < 3:
                 back_btn = self.locate(AppiumBy.ID, back_btn_id)
                 self.click(back_btn)
+                number_selected = self.is_present(AppiumBy.XPATH, selected_number_xpath)
                 tries += 1
 
-            if not self.is_present(AppiumBy.XPATH, number_xpath):
+            if not self.is_present(AppiumBy.XPATH, number_xpath) and not number_selected:
                 hamburger_menu = self.locate(AppiumBy.ID, "com.hushed.release:id/btnHamburger")
                 self.click(hamburger_menu)
 
+            if not number_selected:
                 number_btn = self.locate(AppiumBy.XPATH, number_xpath)
                 self.click(number_btn)
 
