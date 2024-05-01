@@ -87,7 +87,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
 
         if num_messages_to_send:
             with HushedClient(config["phone_uuid"], logger, config["appium_url"]) as client:
-                for x in range(num_messages_to_send):
+                for x in range(2):
                     try:
                         message_to_send = messages_to_send.pop(0)
                         number_for_sending = random.choice(available_numbers)
