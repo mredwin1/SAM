@@ -104,7 +104,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                         available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
                     except IndexError as e:
                         logger.error(e, exc_info=True)
-            sheet_client.sheet.update(queued_messages, "A2")
+                    sheet_client.sheet.update(queued_messages, "A2")
 
 
 if __name__ == "__main__":
