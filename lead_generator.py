@@ -14,6 +14,17 @@ logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
 
 
+def extend_and_add(lst, index, value, filler=""):
+    # Extend the list with the filler value up to the required index
+    if index >= len(lst):
+        lst.extend([filler] * (index - len(lst) + 1))
+
+    # Set the value at the desired index
+    lst[index] = value
+
+    return lst
+
+
 async def get_wyan_code_violation(sheet_client: GoogleSheetClient, config: dict):
     sheet_client.open_sheet('Leads Master')
     target_street_col_num = sheet_client.get_column_index("TargetStreet")
@@ -25,6 +36,8 @@ async def get_wyan_code_violation(sheet_client: GoogleSheetClient, config: dict)
     contact_state_col_num = sheet_client.get_column_index("ContactState")
     contact_zip_col_num = sheet_client.get_column_index("ContactZip")
     datetime_added_col_num = sheet_client.get_column_index("DateTimeAdded")
+    type_col_num = sheet_client.get_column_index("Type")
+    source_col_num = sheet_client.get_column_index("Source")
 
     last_row = sheet_client.get_last_row()
     now = datetime.now()
@@ -32,26 +45,18 @@ async def get_wyan_code_violation(sheet_client: GoogleSheetClient, config: dict)
     async with WYANGovClient(config["chromium_path"], logger, width=1920, height=1920) as client:
         leads = await client.get_code_violations()
         for index, lead in enumerate(leads):
-            lead_values = [""] * max(
-                target_street_col_num,
-                target_city_col_num,
-                target_state_col_num,
-                target_zip_col_num,
-                contact_street_col_num,
-                contact_city_col_num,
-                contact_state_col_num,
-                contact_zip_col_num,
-                datetime_added_col_num
-            )
-            lead_values[target_street_col_num - 1] = lead["street_name"]
-            lead_values[target_city_col_num - 1] = lead["city"]
-            lead_values[target_state_col_num - 1] = lead["state"]
-            lead_values[target_zip_col_num - 1] = lead["zipcode"]
-            lead_values[contact_street_col_num - 1] = lead["street_name"]
-            lead_values[contact_city_col_num - 1] = lead["city"]
-            lead_values[contact_state_col_num - 1] = lead["state"]
-            lead_values[contact_zip_col_num - 1] = lead["zipcode"]
-            lead_values[datetime_added_col_num - 1] = now.strftime("%m/%d/%Y %H:%M:%S")
+            lead_values = []
+            await extend_and_add(lead_values, target_street_col_num - 1, lead["street_name"])
+            await extend_and_add(lead_values, target_city_col_num - 1, lead["city"])
+            await extend_and_add(lead_values, target_state_col_num - 1, lead["state"])
+            await extend_and_add(lead_values, target_zip_col_num - 1, lead["zipcode"])
+            await extend_and_add(lead_values, contact_street_col_num - 1, lead["street_name"])
+            await extend_and_add(lead_values, contact_city_col_num - 1, lead["city"])
+            await extend_and_add(lead_values, contact_state_col_num - 1, lead["state"])
+            await extend_and_add(lead_values, contact_zip_col_num - 1, lead["zipcode"])
+            await extend_and_add(lead_values, datetime_added_col_num - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
+            await extend_and_add(lead_values, type_col_num - 1, "CV")
+            await extend_and_add(lead_values, source_col_num - 1, "Bob")
             values.append(lead_values)
         sheet_client.sheet.update(values, f"A{last_row}")
 
