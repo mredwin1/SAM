@@ -87,8 +87,8 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             logger.info(f"{len(messages_to_send)} messages in queue and chose to send {num_messages_to_send} right now")
             for x in range(2):
                 try:
-                    logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
                     message_to_send = messages_to_send.pop(0)
+                    logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
                     number_for_sending = random.choice(available_numbers)
 
                     client.send_sms(number_for_sending, message_to_send["recipient"], message_to_send["message"])
