@@ -104,7 +104,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
 
                         logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
-                        # client.send_sms(f"+{number_for_sending}", message_to_send["recipient"], message_to_send["message"])
+                        client.send_sms(f"+{number_for_sending}", message_to_send["recipient"], message_to_send["message"])
                         now = datetime.datetime.now()
 
                         queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], time_sent_column_number - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
