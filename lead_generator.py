@@ -42,13 +42,13 @@ async def get_wyan_code_violation(sheet_client: GoogleSheetClient, config: dict)
     existing_leads = sheet_client.read_records()
     last_row = len(existing_leads) + 2
 
-    existing_addresses = [" ".join([existing_lead["TargetStreet"], existing_lead["TargetCity"], existing_lead["TargetState"], str(existing_lead["TargetZip"])]) for existing_lead in existing_leads]
+    existing_addresses = [" ".join([existing_lead["TargetStreet"].lower(), existing_lead["TargetCity"].lower(), existing_lead["TargetState"].lower(), str(existing_lead["TargetZip"])]) for existing_lead in existing_leads]
     now = datetime.now()
     values = []
     async with WYANGovClient(config["chromium_path"], logger, width=1920, height=1920) as client:
         leads = await client.get_code_violations()
         for index, lead in enumerate(leads):
-            address = " ".join([lead["street_name"], lead["city"], lead["state"], lead["zipcode"]])
+            address = " ".join([lead["street_name"].lower(), lead["city"].lower(), lead["state"].lower(), lead["zipcode"]])
             if address not in existing_addresses:
                 lead_values = []
                 lead_values = extend_and_add(lead_values, target_street_col_num - 1, lead["street_name"])
@@ -62,6 +62,7 @@ async def get_wyan_code_violation(sheet_client: GoogleSheetClient, config: dict)
                 lead_values = extend_and_add(lead_values, datetime_added_col_num - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
                 lead_values = extend_and_add(lead_values, type_col_num - 1, "CV")
                 lead_values = extend_and_add(lead_values, source_col_num - 1, "Bob")
+                existing_addresses.append(address)
                 values.append(lead_values)
         sheet_client.sheet.update(values, f"A{last_row}")
 
