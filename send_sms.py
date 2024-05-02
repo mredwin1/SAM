@@ -141,7 +141,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                         time.sleep(random.randint(25, 35))
                     except IndexError as e:
                         logger.error(e, exc_info=True)
-                    logger.info(f"\n=========================================================")
+                    logger.info(f"=========================================================")
                     sheet_client.sheet.update(queued_messages, "A2")
 
 
