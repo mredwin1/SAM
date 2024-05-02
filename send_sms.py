@@ -116,7 +116,9 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             last_number = get_latest_phone_number(messages)
             with HushedClient(config["phone_uuid"], logger, config["appium_url"]) as client:
                 for x in range(num_messages_to_send):
+                    logger.info(f"\n=========================================================")
                     logger.info(f"Latest number used for sending: {last_number}")
+                    logger.info(f"Available numbers: {available_numbers}")
                     try:
                         message_to_send = messages_to_send.pop(0)
 
@@ -139,6 +141,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                         time.sleep(random.randint(25, 35))
                     except IndexError as e:
                         logger.error(e, exc_info=True)
+                    logger.info(f"\n=========================================================")
                     sheet_client.sheet.update(queued_messages, "A2")
 
 
