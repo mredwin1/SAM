@@ -30,7 +30,7 @@ def calculate_msgs_to_send(msgs_left: int, daily_quota: int, send_prob: int, int
     current_time = datetime.datetime.now()
     end_time = current_time.replace(hour=20, minute=0, second=0, microsecond=0)
     mins_left_day = (end_time - current_time).total_seconds() / 60
-    intervals_left = max((mins_left_day + interval - 1) // interval, 1)
+    intervals_left = max(int(mins_left_day + interval - 1) // interval, 1)
 
     # Early exit if not likely to send and there's more than one interval left
     if random.randint(0, 100) >= send_prob and intervals_left > 1:
