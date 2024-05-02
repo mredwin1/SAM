@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import random
+import time
 
 from clients import GoogleSheetClient, HushedClient
 
@@ -25,18 +26,19 @@ def extend_and_add(lst, index, value, filler=""):
     return lst
 
 
-def calculate_messages_to_send(messages_left: int, current_time: datetime.datetime, total_sent_this_hour: int,
-                               max_per_hour: int, send_probability: int, interval=5):
-    minutes_to_hour = 60 - current_time.minute
-    intervals_left = (minutes_to_hour + interval - 1) // interval
-    max_allowed_this_hour = max_per_hour - total_sent_this_hour
-    if intervals_left > 1 and random.randint(0, 100) >= send_probability:
+def calculate_msgs_to_send(msgs_left: int, daily_quota: int, send_prob: int, interval=3):
+    current_time = datetime.datetime.now()
+    end_time = current_time.replace(hour=20, minute=0, second=0, microsecond=0)
+    mins_left_day = (end_time - current_time).total_seconds() / 60
+    intervals_left = max((mins_left_day + interval - 1) // interval, 1)
+
+    # Early exit if not likely to send and there's more than one interval left
+    if random.randint(0, 100) >= send_prob and intervals_left > 1:
         return 0
 
-    num_messages_to_send = messages_left // ((60 / interval) - current_time.minute // interval)
-
-    num_messages_to_send = min(num_messages_to_send, max_allowed_this_hour, max_allowed_this_hour // intervals_left)
-    return num_messages_to_send
+    # Determine the lesser of the messages that can be sent per interval based on remaining messages or quota and no
+    # More than 5 messages ever
+    return min(msgs_left // intervals_left, daily_quota // intervals_left, 5)
 
 
 def send_messages(sheet_client: GoogleSheetClient, config: dict):
@@ -76,35 +78,46 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
 
     logger.info(f"Message counts: {numbers}")
     queued_messages = [[value for value in queued_message.values()] for queued_message in messages]
-    available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
+    available_numbers = [key for key, value in numbers.items() if value < config["messages_per_hour"]]
     if available_numbers:
         run_interval = config["leads_manager_run_interval"]
-        max_messages_per_hour = config["max_number_of_messages_to_send"] * len(config["numbers_for_send"])
+        max_messages_per_day = config["messages_per_hour"] * len(config["numbers_for_send"]) * 12
         chance_to_send_messages = config["chance_to_send"]
-        num_messages_to_send = calculate_messages_to_send(len(messages_to_send), execution_time, sum(numbers.values()),
-                                                          max_messages_per_hour, chance_to_send_messages, run_interval)
+        num_messages_to_send = calculate_msgs_to_send(
+            len(messages_to_send),
+            max_messages_per_day,
+            chance_to_send_messages,
+            run_interval
+        )
         logger.info(f"{len(messages_to_send)} messages in queue and chose to send {num_messages_to_send} right now")
 
-        # if num_messages_to_send:
-        with HushedClient(config["phone_uuid"], logger, config["appium_url"]) as client:
-            for x in range(2):
-                try:
-                    message_to_send = messages_to_send.pop(0)
-                    number_for_sending = random.choice(available_numbers)
-                    logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
+        if num_messages_to_send:
+            last_number = messages[-1]["SenderNumber"]
+            with HushedClient(config["phone_uuid"], logger, config["appium_url"]) as client:
+                for x in range(num_messages_to_send):
+                    try:
+                        message_to_send = messages_to_send.pop(0)
 
-                    client.send_sms(f"+{number_for_sending}", message_to_send["recipient"], message_to_send["message"])
-                    now = datetime.datetime.now()
+                        number_for_sending = random.choice(available_numbers)
+                        while number_for_sending == last_number and len(available_numbers) > 1:
+                            number_for_sending = random.choice(available_numbers)
 
-                    queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], time_sent_column_number - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
-                    queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], sender_number_column_number - 1, number_for_sending)
-                    logger.info(f"Sent \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
+                        logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
-                    numbers[number_for_sending] += 1
-                    available_numbers = [key for key, value in numbers.items() if value < config["max_number_of_messages_to_send"]]
-                except IndexError as e:
-                    logger.error(e, exc_info=True)
-                sheet_client.sheet.update(queued_messages, "A2")
+                        client.send_sms(f"+{number_for_sending}", message_to_send["recipient"], message_to_send["message"])
+                        now = datetime.datetime.now()
+
+                        queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], time_sent_column_number - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
+                        queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], sender_number_column_number - 1, number_for_sending)
+                        logger.info(f"Sent \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
+
+                        numbers[number_for_sending] += 1
+                        available_numbers = [key for key, value in numbers.items() if value < config["messages_per_hour"]]
+                        last_number = number_for_sending
+                        time.sleep(random.randint(25, 35))
+                    except IndexError as e:
+                        logger.error(e, exc_info=True)
+                    sheet_client.sheet.update(queued_messages, "A2")
 
 
 if __name__ == "__main__":
