@@ -34,11 +34,33 @@ def calculate_msgs_to_send(msgs_left: int, daily_quota: int, send_prob: int, int
 
     # Early exit if not likely to send and there's more than one interval left
     if random.randint(0, 100) >= send_prob and intervals_left > 1:
+        logger.info("Probability to not send hit!")
         return 0
 
     # Determine the lesser of the messages that can be sent per interval based on remaining messages or quota and no
     # More than 5 messages ever
     return min(msgs_left // intervals_left, daily_quota // intervals_left, 5)
+
+
+def get_latest_phone_number(messages):
+    """
+    This function takes a list of dictionaries where each dictionary has a 'Message', 'DateTimeSent', and 'SenderNumber'.
+    It returns the phone number of the sender from the latest message.
+    """
+    def parse_date(date_str):
+        try:
+            return datetime.datetime.strptime(date_str, '%m/%d/%Y %H:%M:%S')
+        except ValueError:
+            return datetime.datetime.min  # Return a minimal datetime for blank or incorrect formats
+
+    # Sorting the list of dictionaries by 'DateTimeSent' after converting to datetime objects
+    messages_sorted = sorted(messages, key=lambda x: parse_date(x['DateTimeSent']) if x['DateTimeSent'] else datetime.datetime.min)
+
+    # Getting the last element from the sorted list to find the latest message
+    latest_message = messages_sorted[-1]
+
+    # Extracting and returning the 'SenderNumber' from the latest message
+    return latest_message['SenderNumber']
 
 
 def send_messages(sheet_client: GoogleSheetClient, config: dict):
@@ -90,11 +112,11 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             run_interval
         )
         logger.info(f"{len(messages_to_send)} messages in queue and chose to send {num_messages_to_send} right now")
-
         if num_messages_to_send:
-            last_number = messages[-1]["SenderNumber"]
+            last_number = get_latest_phone_number(messages)
             with HushedClient(config["phone_uuid"], logger, config["appium_url"]) as client:
                 for x in range(num_messages_to_send):
+                    logger.info(f"Latest number used for sending: {last_number}")
                     try:
                         message_to_send = messages_to_send.pop(0)
 
