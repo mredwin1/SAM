@@ -116,7 +116,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             last_number = get_latest_phone_number(messages)
             with HushedClient(config["phone_uuid"], logger, config["appium_url"]) as client:
                 for x in range(num_messages_to_send):
-                    logger.info(f"\n=========================================================")
+                    logger.info(f"=========================================================")
                     logger.info(f"Latest number used for sending: {last_number}")
                     logger.info(f"Available numbers: {available_numbers}")
                     try:
