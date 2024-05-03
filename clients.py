@@ -906,6 +906,8 @@ class HushedClient(AppiumClient):
     def send_sms(self, sender_number: str, recipient: str, message: str):
         self.go_to_messages_screen(sender_number)
 
+        self.sleep(2)
+
         new_message_btn = self.locate(AppiumBy.ID, 'com.hushed.release:id/btnMessageCompose')
         self.click(new_message_btn)
 
