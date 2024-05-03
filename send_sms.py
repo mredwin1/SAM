@@ -76,6 +76,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
     for index, message in enumerate(messages):
         row_num = index + 2
         datetime_sent_str = message["DateTimeSent"]
+        datetime_queued_str = message["DateTimeQueued"]
         message_str = str(message["Message"])
         recipient_str = str(message["Recipient"])
         sender_number = str(message["SenderNumber"])
@@ -90,7 +91,8 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                     "message": message_str,
                     "lead_row_num": lead_row_num,
                     "number_index": number_index,
-                    "priority": priority
+                    "priority": priority,
+                    "datetime_queued": datetime_queued_str
                 })
             elif message["DateTimeSent"] and sender_number:
                 try:
@@ -109,7 +111,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             messages_to_send,
             key=lambda i: (
                 i['priority'],
-                datetime.datetime.strptime(i['DateTimeQueued'], '%m/%d/%Y %H:%M:%S') if i['priority'] == 0 else datetime.datetime.max
+                datetime.datetime.strptime(i['datetime_queued'], '%m/%d/%Y %H:%M:%S') if i['priority'] == 0 else datetime.datetime.max
             ),
             reverse=True
         )
@@ -117,7 +119,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
         messages_to_send = sorted(
             messages_to_send,
             key=lambda i: (
-                datetime.datetime.strptime(i['DateTimeQueued'], '%m/%d/%Y %H:%M:%S') if i['priority'] == 0 else datetime.datetime.max
+                datetime.datetime.strptime(i['datetime_queued'], '%m/%d/%Y %H:%M:%S') if i['priority'] == 0 else datetime.datetime.max
             )
         )
 
