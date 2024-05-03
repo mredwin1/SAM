@@ -4,7 +4,7 @@ import logging
 import os
 import random
 
-from clients import GoogleSheetClient, BatchDataClient
+from clients import GoogleSheetClient, BatchDataClient, DealMachineClient
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger("leads_manager_logger")
@@ -105,6 +105,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
     with open(os.path.join(script_dir, 'config.json'), 'rb') as config_file:
         config = json.load(config_file)
 
+    priority_mapping = config["sms_priority_mapping"]
     sheet_client.open_sheet("Message Templates")
     messages = sheet_client.read_records()
     messages = [message["Message"] for message in messages]
@@ -119,6 +120,9 @@ def queue_messages(sheet_client: GoogleSheetClient):
     message_col_num = queue_message_sheet_client.get_column_index("Message")
     recipient_col_num = queue_message_sheet_client.get_column_index("Recipient")
     time_queued_col_num = queue_message_sheet_client.get_column_index("DateTimeQueued")
+    priority_col_num = queue_message_sheet_client.get_column_index("Priority")
+    row_num_col_num = queue_message_sheet_client.get_column_index("LeadRowNum")
+    phone_num_index_col_num = queue_message_sheet_client.get_column_index("PhoneNumIndex")
     now = datetime.datetime.now()
     time_queued_str = now.strftime("%m/%d/%Y %H:%M:%S")
     msg_queued_col_numbers = {
@@ -129,17 +133,27 @@ def queue_messages(sheet_client: GoogleSheetClient):
     leads_values = []
     message_queue_value = []
     for index, lead in enumerate(leads):
+        row_num = index + 2
         leads_lst = [value for value in lead.values()]
         if validate_phones_lead(lead):
             for message_index in range(1, 4):
                 phone_key = f"ContactPhone{message_index}"
                 queued_key = f"SMS{message_index}QueuedDateTime"
                 if not_queued_and_phone_present(lead, phone_key, queued_key) and is_delay_met_for_phone(lead, message_index, config):
+                    try:
+                        priority = priority_mapping[lead["Type"]]
+                    except KeyError:
+                        priority = 0
+                        logger.warning(f"Priority not found for \"{lead['Type']}\" lead type")
+
                     message_queue_lst = []
                     message = random.choice(messages).replace("{TargetStreet}", lead["TargetStreet"])
                     extend_and_add(message_queue_lst, message_col_num - 1, message)
                     extend_and_add(message_queue_lst, recipient_col_num - 1, lead[phone_key])
                     extend_and_add(message_queue_lst, time_queued_col_num - 1, time_queued_str)
+                    extend_and_add(message_queue_lst, priority_col_num - 1, priority)
+                    extend_and_add(message_queue_lst, row_num_col_num - 1, row_num)
+                    extend_and_add(message_queue_lst, phone_num_index_col_num - 1, message_index)
                     extend_and_add(leads_lst, msg_queued_col_numbers[message_index] - 1, time_queued_str)
 
                     lead[queued_key] = time_queued_str
@@ -147,7 +161,55 @@ def queue_messages(sheet_client: GoogleSheetClient):
 
         leads_values.append(leads_lst)
     sheet_client.sheet.update(leads_values, "A2")
+    message_queue_value.append([""])
     queue_message_sheet_client.sheet.update(message_queue_value, f"A{queue_last_row}")
+
+
+def import_from_deal_machine(sheet_client: GoogleSheetClient):
+    sheet_client.open_sheet('Leads Master')
+    target_street_col_num = sheet_client.get_column_index("TargetStreet")
+    target_city_col_num = sheet_client.get_column_index("TargetCity")
+    target_state_col_num = sheet_client.get_column_index("TargetState")
+    target_zip_col_num = sheet_client.get_column_index("TargetZip")
+    contact_street_col_num = sheet_client.get_column_index("ContactStreet")
+    contact_city_col_num = sheet_client.get_column_index("ContactCity")
+    contact_state_col_num = sheet_client.get_column_index("ContactState")
+    contact_zip_col_num = sheet_client.get_column_index("ContactZip")
+    datetime_added_col_num = sheet_client.get_column_index("DateTimeAdded")
+    type_col_num = sheet_client.get_column_index("Type")
+    source_col_num = sheet_client.get_column_index("Source")
+
+    existing_leads = sheet_client.read_records()
+    last_row = len(existing_leads) + 2
+
+    existing_addresses = [" ".join([existing_lead["TargetStreet"].lower(), existing_lead["TargetCity"].lower(),
+                                    existing_lead["TargetState"].lower(), str(existing_lead["TargetZip"])]) for
+                          existing_lead in existing_leads]
+    now = datetime.datetime.now()
+    values = []
+    with DealMachineClient(logger) as client:
+        leads = client.get_leads()
+        for index, lead in enumerate(leads):
+            contact_address = lead["contact_address"]
+            target_address = lead["target_address"]
+            address = " ".join([target_address.street_name.lower(), target_address.city.lower(), target_address.state.lower(), target_address.zip])
+            if address not in existing_addresses:
+                lead_values = []
+                lead_values = extend_and_add(lead_values, target_street_col_num - 1, target_address.street_name)
+                lead_values = extend_and_add(lead_values, target_city_col_num - 1, target_address.city)
+                lead_values = extend_and_add(lead_values, target_state_col_num - 1, target_address.state)
+                lead_values = extend_and_add(lead_values, target_zip_col_num - 1, target_address.zip)
+                lead_values = extend_and_add(lead_values, contact_street_col_num - 1, contact_address.street_name)
+                lead_values = extend_and_add(lead_values, contact_city_col_num - 1, contact_address.city)
+                lead_values = extend_and_add(lead_values, contact_state_col_num - 1, contact_address.state)
+                lead_values = extend_and_add(lead_values, contact_zip_col_num - 1, contact_address.zip)
+                lead_values = extend_and_add(lead_values, datetime_added_col_num - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
+                lead_values = extend_and_add(lead_values, type_col_num - 1, lead["type"])
+                lead_values = extend_and_add(lead_values, source_col_num - 1, lead["creator"])
+                existing_addresses.append(address)
+                values.append(lead_values)
+        values.append([""])
+        sheet_client.sheet.update(values, f"A{last_row}")
 
 
 if __name__ == "__main__":
@@ -156,5 +218,6 @@ if __name__ == "__main__":
 
     google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
 
-    skip_trace(google_sheet_client)
+    # import_from_deal_machine(google_sheet_client)
+    # skip_trace(google_sheet_client)
     queue_messages(google_sheet_client)
