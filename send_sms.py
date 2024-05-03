@@ -79,8 +79,8 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
         message_str = str(message["Message"])
         recipient_str = str(message["Recipient"])
         sender_number = str(message["SenderNumber"])
-        lead_row_num = int(message["LeadRowNum"])
-        number_index = int(message["PhoneNumIndex"])
+        lead_row_num = int(message["LeadRowNum"]) if message["LeadRowNum"] else 0
+        number_index = int(message["PhoneNumIndex"]) if message["PhoneNumIndex"] else 0
         priority = int(message["Priority"])
         try:
             if not datetime_sent_str and message_str and recipient_str:
@@ -167,7 +167,8 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
 
                             queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], time_sent_column_number - 1, time_sent.strftime("%m/%d/%Y %H:%M:%S"))
                             queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], sender_number_column_number - 1, number_for_sending)
-                            sheet_client.sheet.update_cell(message_to_send["lead_row_num"], msg_queued_col_numbers[message_to_send["message_index"]], time_sent.strftime("%m/%d/%Y %H:%M:%S"))
+                            if message_to_send["lead_row_num"]:
+                                sheet_client.sheet.update_cell(message_to_send["lead_row_num"], msg_queued_col_numbers[message_to_send["message_index"]], time_sent.strftime("%m/%d/%Y %H:%M:%S"))
                             logger.info(f"Sent \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
                             numbers[number_for_sending] += 1
