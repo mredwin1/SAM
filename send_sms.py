@@ -123,8 +123,10 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                         message_to_send = messages_to_send.pop(0)
 
                         number_for_sending = random.choice(available_numbers)
+                        logger.info(f"First number picked for sending: {number_for_sending}")
                         while number_for_sending == last_number and len(available_numbers) > 1:
                             number_for_sending = random.choice(available_numbers)
+                            logger.info(f"Re-picked number: {number_for_sending}")
 
                         logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
