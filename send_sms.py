@@ -105,7 +105,22 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             logger.warning(f"Skipping processing row {row_num} due to missing columns")
 
     if messages_to_send:
-        messages_to_send = sorted(messages_to_send, key=lambda i: i['priority'], reverse=True)
+        messages_to_send = sorted(
+            messages_to_send,
+            key=lambda i: (
+                i['priority'],
+                datetime.datetime.strptime(i['DateTimeQueued'], '%m/%d/%Y %H:%M:%S') if i['priority'] == 0 else datetime.datetime.max
+            ),
+            reverse=True
+        )
+        # Reverse the sorting order for the datetime component when priority is 0
+        messages_to_send = sorted(
+            messages_to_send,
+            key=lambda i: (
+                datetime.datetime.strptime(i['DateTimeQueued'], '%m/%d/%Y %H:%M:%S') if i['priority'] == 0 else datetime.datetime.max
+            )
+        )
+
         logger.info(f"Message counts: {numbers}")
         queued_messages = [[value for value in queued_message.values()] for queued_message in messages]
         available_numbers = [key for key, value in numbers.items() if value < config["messages_per_hour"]]
