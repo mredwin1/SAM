@@ -194,7 +194,7 @@ def import_from_deal_machine(sheet_client: GoogleSheetClient, config: dict):
     types_mapping = config["types_mapping"]
     now = datetime.datetime.now()
     values = []
-    with DealMachineClient(logger) as client:
+    with DealMachineClient(logger, os.path.join(script_dir, "config.json")) as client:
         leads = client.get_leads()
         for index, lead in enumerate(leads):
             contact_address = lead["contact_address"]
