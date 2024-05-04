@@ -109,7 +109,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
     if messages_to_send:
         messages_to_send = sorted(
             messages_to_send,
-            key=lambda i: (-i['priority'], datetime.datetime.strptime(i['DateTimeQueued'], '%m/%d/%Y %H:%M:%S'))
+            key=lambda i: (-i['priority'], datetime.datetime.strptime(i['datetime_queued'], '%m/%d/%Y %H:%M:%S'))
         )
 
         logger.info(f"Message counts: {numbers}")
