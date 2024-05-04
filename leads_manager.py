@@ -75,7 +75,8 @@ def skip_trace(sheet_client: GoogleSheetClient):
                         extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
                 values.append(leads_lst)
     except BatchAPIError as e:
-        logger.error(e, exc_info=True)
+        logger.warning(e)
+        logger.info("Skip tracing skipped...")
     sheet_client.sheet.update(values, "A2")
 
 
