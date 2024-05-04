@@ -44,39 +44,40 @@ def skip_trace(sheet_client: GoogleSheetClient):
 
     leads = sheet_client.read_records()
     values = []
-    try:
-        with BatchDataClient(logger, os.path.join(script_dir, "config.json")) as client:
-            for index, lead in enumerate(leads):
-                leads_lst = [value for value in lead.values()]
-                if validate_lead(lead):
-                    try:
-                        traced_phone_numbers = client.skip_trace(
-                            str(lead["ContactCity"]),
-                            str(lead["ContactStreet"]),
-                            str(lead["ContactState"]),
-                            str(lead["ContactZip"]),
-                            first_name=str(lead["ContactFirstName"]),
-                            last_name=str(lead["ContactLastName"])
-                        )
+    with BatchDataClient(logger, os.path.join(script_dir, "config.json")) as client:
+        for index, lead in enumerate(leads):
+            leads_lst = [value for value in lead.values()]
+            if validate_lead(lead):
+                try:
+                    traced_phone_numbers = client.skip_trace(
+                        str(lead["ContactCity"]),
+                        str(lead["ContactStreet"]),
+                        str(lead["ContactState"]),
+                        str(lead["ContactZip"]),
+                        first_name=str(lead["ContactFirstName"]),
+                        last_name=str(lead["ContactLastName"])
+                    )
 
-                        if traced_phone_numbers:
-                            extend_and_add(leads_lst, skip_trace_result_col_num - 1, "TRUE")
-                            try:
-                                extend_and_add(leads_lst, contact_phone1_col_num - 1, traced_phone_numbers[0])
-                                extend_and_add(leads_lst, contact_phone2_col_num - 1, traced_phone_numbers[1])
-                                extend_and_add(leads_lst, contact_phone3_col_num - 1, traced_phone_numbers[2])
-                            except IndexError:
-                                pass
-                        else:
-                            logger.warning(f"No phone numbers found for address: {lead['ContactStreet']} {lead['ContactCity']} {lead['ContactState']} {lead['ContactZip']}")
-                            extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
-                    except Exception as e:
-                        logger.error(e, exc_info=True)
+                    if traced_phone_numbers:
+                        extend_and_add(leads_lst, skip_trace_result_col_num - 1, "TRUE")
+                        try:
+                            extend_and_add(leads_lst, contact_phone1_col_num - 1, traced_phone_numbers[0])
+                            extend_and_add(leads_lst, contact_phone2_col_num - 1, traced_phone_numbers[1])
+                            extend_and_add(leads_lst, contact_phone3_col_num - 1, traced_phone_numbers[2])
+                        except IndexError:
+                            pass
+                    else:
+                        logger.warning(f"No phone numbers found for address: {lead['ContactStreet']} {lead['ContactCity']} {lead['ContactState']} {lead['ContactZip']}")
                         extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
-                values.append(leads_lst)
-    except BatchAPIError as e:
-        logger.warning(e)
-        logger.info("Skip tracing skipped...")
+                except BatchAPIError as e:
+                    logger.warning(e)
+                    logger.info("Skip tracing skipped...")
+                    break
+                except Exception as e:
+                    logger.error(e, exc_info=True)
+                    extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
+            values.append(leads_lst)
+
     sheet_client.sheet.update(values, "A2")
 
 
@@ -145,7 +146,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
                 queued_key = f"SMS{message_index}QueuedDateTime"
                 if not_queued_and_phone_present(lead, phone_key, queued_key) and is_delay_met_for_phone(lead, message_index, config):
                     try:
-                        mapping = [mapping for mapping in priority_mapping if mapping["display_name"] == lead["Type"]]
+                        mapping = [mapping for mapping in priority_mapping.values() if mapping["display_name"] == lead["Type"]]
 
                         if mapping:
                             priority = mapping[0]["priority"]
