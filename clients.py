@@ -1029,13 +1029,14 @@ class BatchDataClient:
             people = response.get("results", {}).get("persons", [])
 
             for person in people:
-                if not person.get("death", {}).get("deceased", False):
+                if person and not person.get("death", {}).get("deceased", False):
                     phones_list = person.get("phoneNumbers", [])
                     mobile_numbers = [num["number"] for num in phones_list if num["type"] == "Mobile"]
                     phone_numbers.extend(mobile_numbers[:num_phones])
 
         except (KeyError, IndexError) as e:
             self.logger.error(e, exc_info=True)
+            self.logger.error(f"Errored on: {street} {city} {state} {zipcode}", exc_info=True)
 
         return phone_numbers
 
