@@ -157,8 +157,10 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                             queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], time_sent_column_number - 1, time_sent.strftime("%m/%d/%Y %H:%M:%S"))
                             queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], sender_number_column_number - 1, number_for_sending)
                             if message_to_send["lead_row_num"]:
-                                logger.info("Sent datetime written to Leads Master")
-                                leads_master_sheet_client.sheet.update_cell(message_to_send["lead_row_num"], msg_queued_col_numbers[message_to_send["number_index"]], time_sent.strftime("%m/%d/%Y %H:%M:%S"))
+                                row = message_to_send["lead_row_num"]
+                                col = msg_queued_col_numbers[message_to_send["number_index"]]
+                                logger.info(f"Sent datetime written to Leads Master - Row: {row} Col: {col}")
+                                leads_master_sheet_client.sheet.update_cell(row, col, time_sent.strftime("%m/%d/%Y %H:%M:%S"))
                             logger.info(f"Sent \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
                             numbers[number_for_sending] += 1
