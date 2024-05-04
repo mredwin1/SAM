@@ -147,7 +147,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                             number_for_sending = random.choice(available_numbers)
                             logger.info(f"First number picked for sending: {number_for_sending}")
                             if number_for_sending == last_number and len(available_numbers) == 1:
-                                logger.info("Only one number available now switching...")
+                                logger.info("Only one number available not switching...")
                             else:
                                 logger.info("Switching numbers")
                                 while number_for_sending == last_number:
