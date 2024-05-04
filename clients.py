@@ -33,6 +33,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 from typing import Union, List, Dict, Tuple
 
 
+class BatchAPIError(Exception):
+    pass
+
 class AppiumClient:
     def __init__(
         self,
@@ -1019,6 +1022,10 @@ class BatchDataClient:
         phone_numbers = []
         try:
             response = requests.post(f"{self.BASE_URL}/property/skip-trace", json=body, headers=headers).json()
+
+            if response['status']['code'] != 200:
+                raise BatchAPIError(response['status']['message'])
+
             people = response.get("results", {}).get("persons", [])
 
             for person in people:
