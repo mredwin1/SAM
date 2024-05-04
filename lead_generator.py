@@ -45,25 +45,27 @@ async def get_wyan_code_violation(sheet_client: GoogleSheetClient, config: dict)
     existing_addresses = [" ".join([existing_lead["TargetStreet"].lower(), existing_lead["TargetCity"].lower(), existing_lead["TargetState"].lower(), str(existing_lead["TargetZip"])]) for existing_lead in existing_leads]
     now = datetime.now()
     values = []
-    async with WYANGovClient(config["chromium_path"], logger, width=1920, height=1920) as client:
+    async with WYANGovClient(config["chromium_path"], logger, config["types_mapping"], width=1920, height=1920) as client:
         leads = await client.get_code_violations()
         for index, lead in enumerate(leads):
-            address = " ".join([lead["street_name"].lower(), lead["city"].lower(), lead["state"].lower(), lead["zipcode"]])
+            lead_address = lead["address"]
+            address = " ".join([lead_address.street_name.lower(), lead_address.city.lower(), lead_address.state.lower(), lead_address.zip])
             if address not in existing_addresses:
                 lead_values = []
-                lead_values = extend_and_add(lead_values, target_street_col_num - 1, lead["street_name"])
-                lead_values = extend_and_add(lead_values, target_city_col_num - 1, lead["city"])
-                lead_values = extend_and_add(lead_values, target_state_col_num - 1, lead["state"])
-                lead_values = extend_and_add(lead_values, target_zip_col_num - 1, lead["zipcode"])
-                lead_values = extend_and_add(lead_values, contact_street_col_num - 1, lead["street_name"])
-                lead_values = extend_and_add(lead_values, contact_city_col_num - 1, lead["city"])
-                lead_values = extend_and_add(lead_values, contact_state_col_num - 1, lead["state"])
-                lead_values = extend_and_add(lead_values, contact_zip_col_num - 1, lead["zipcode"])
+                lead_values = extend_and_add(lead_values, target_street_col_num - 1, lead_address.street_name)
+                lead_values = extend_and_add(lead_values, target_city_col_num - 1, lead_address.city)
+                lead_values = extend_and_add(lead_values, target_state_col_num - 1, lead_address.state)
+                lead_values = extend_and_add(lead_values, target_zip_col_num - 1, lead_address.zip)
+                lead_values = extend_and_add(lead_values, contact_street_col_num - 1, lead_address.street_name)
+                lead_values = extend_and_add(lead_values, contact_city_col_num - 1, lead_address.city)
+                lead_values = extend_and_add(lead_values, contact_state_col_num - 1, lead_address.state)
+                lead_values = extend_and_add(lead_values, contact_zip_col_num - 1, lead_address.zip)
                 lead_values = extend_and_add(lead_values, datetime_added_col_num - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
-                lead_values = extend_and_add(lead_values, type_col_num - 1, "CV")
+                lead_values = extend_and_add(lead_values, type_col_num - 1, lead["lead_type"])
                 lead_values = extend_and_add(lead_values, source_col_num - 1, "Bob")
                 existing_addresses.append(address)
                 values.append(lead_values)
+        values.append([""])
         sheet_client.sheet.update(values, f"A{last_row}")
 
 

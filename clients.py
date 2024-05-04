@@ -9,12 +9,12 @@ import re
 import requests
 import time
 import traceback
-import usaddress
 
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
 from appium.webdriver.common.appiumby import AppiumBy
 from datetime import datetime, timedelta
+from helpers import Address
 from pyppeteer.browser import Browser
 from pyppeteer.page import Page
 from pyppeteer.element_handle import ElementHandle
@@ -766,59 +766,33 @@ class BasePuppeteerClient:
 
 
 class WYANGovClient(BasePuppeteerClient):
-    STREET_LABELS = [
-        "AddressNumberPrefix",
-        "AddressNumber",
-        "AddressNumberSuffix",
-        "StreetNamePreModifier",
-        "StreetNamePreDirectional",
-        "StreetNamePreType",
-        "StreetName",
-        "StreetNamePostType",
-        "StreetNamePostDirectional",
-        "SubaddressType",
-        "SubaddressIdentifier",
-        "BuildingName",
-        "OccupancyType",
-        "OccupancyIdentifier",
-        "CornerOf",
-        "LandmarkName"
-    ]
-
     IGNORED_CASE_PREFIX = [
         "TOW",
         "GRA"
     ]
 
-    def parse_address(self, address_str: str):
-        street_str = ""
-        parsed_address = usaddress.parse(address_str)
-
-        address_dict = {}
-        for value, key in parsed_address:
-            address_dict[key] = address_dict[key] + f" {value}" if address_dict.get(key) else value
-
-        for label in self.STREET_LABELS:
-            try:
-                street_str += f"{address_dict[label].title()} "
-            except KeyError:
-                pass
-
-        parsed_address_dict = {
-            "street_name": street_str.strip().replace(",", "").title(),
-            "city": address_dict.get("PlaceName").title(),
-            "state": address_dict.get("StateName"),
-            "zipcode": address_dict.get("ZipCode").title()
-        }
-
-        return parsed_address_dict
+    def __init__(self, executable_path: str, logger: logging.Logger, types_mapping: dict, width: int, height: int):
+        super().__init__(executable_path, logger, width=width, height=height)
+        self.types_mapping = types_mapping
 
     def check_case_number(self, case_number: str):
         for case_prefix in self.IGNORED_CASE_PREFIX:
             if case_number.startswith(case_prefix):
                 return True
 
-    async def get_code_violations(self):
+    def get_type_display_name(self, case_number: str):
+        print(f"Case Number: {case_number}")
+        try:
+            print(f"Case Number Prefix: {case_number[:3]}")
+            display_name = self.types_mapping[case_number[:3]]["display_name"]
+        except KeyError:
+            display_name = "Code Violation"
+
+        print(f"Display Name: {display_name}")
+
+        return display_name
+
+    async def get_code_violations(self) -> List[Dict]:
         yesterday = datetime.today() - timedelta(days=1)
         await self.page.goto("https://mauwi.wycokck.org/CitizenAccess/Welcome.aspx")
         await self.sleep(5)
@@ -836,30 +810,33 @@ class WYANGovClient(BasePuppeteerClient):
         await self.click('a[id="ctl00_PlaceHolderMain_btnNewSearch"]')
         await self.sleep(4)
 
-        addresses = []
+        leads = []
         page_elements = await self.find_all('.aca_pagination_td')
         for _ in range(len(page_elements[2:-1])):
-            await self.page.keyboard.press("PageDown")
-            await self.page.keyboard.press("PageDown")
-            await self.page.keyboard.press("PageDown")
-
             code_violations = await self.find_all(".ACA_TabRow_Odd, .ACA_TabRow_Even")
 
             for code_violation in code_violations:
                 case_number_element = await code_violation.querySelector('[id$="PermitNumber"]')
                 case_number = await self.page.evaluate('(element) => element.textContent', case_number_element)
-
+                case_number = case_number.strip()
                 if not self.check_case_number(case_number):
                     address_element = await code_violation.querySelector('[id$="_lblAddress"]')
                     address = await self.page.evaluate('(element) => element.textContent', address_element)
-                    addresses.append(self.parse_address(address))
+                    address_obj = Address(address)
+
+                    lead = {
+                        "lead_type": self.get_type_display_name(case_number),
+                        "address": address_obj
+                    }
+
+                    leads.append(lead)
 
             pagination_buttons = await self.find_all('.aca_pagination_PrevNext')
             await pagination_buttons[-1].click()
 
             await self.sleep(2, 4)
 
-        return addresses
+        return leads
 
 
 class HushedClient(AppiumClient):
@@ -1056,9 +1033,74 @@ class BatchDataClient:
         return phone_numbers
 
 
+class DealMachineClient:
+    BASE_URL = "https://api.dealmachine.com/public/v1"
+
+    def __init__(self, logger, config_file_name: str = "config.json"):
+        self.config_file_name = config_file_name
+        self.logger = logger
+
+    def __enter__(self):
+        # Load the config file on context entry
+        with open(self.config_file_name, 'rb') as config_file:
+            self.config = json.load(config_file)
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # Handle resource cleanup or specific operations when context is exited
+        # This could be a good place to handle errors, if needed
+        if exc_type:
+            self.logger.error(f"An error occurred: {exc_value}")
+
+    def _get_headers(self):
+        return {
+            "Authorization": f"Bearer {self.config['deal_machine_api_key']}"
+        }
+
+    def get_leads(self):
+        headers = self._get_headers()
+        leads = []
+
+        data = None
+        after = 0
+        while data is None or data != []:
+            response = requests.get(f"{self.BASE_URL}/leads/?limit=100&after={after}", headers=headers)
+            data = response.json()["data"]
+
+            for batch_lead in data:
+                is_rd4d = len([list_type for list_type in batch_lead["lists"] if list_type["title"] == "RD4D"]) > 0
+                is_d4d = not batch_lead["lists"]
+                if (is_rd4d or is_d4d) and "Edwin" not in batch_lead["creator"]["label"]:
+                    contact_address = Address(batch_lead["owner_address_full"])
+                    target_address = Address(batch_lead["property_address_full"])
+                    lead = {
+                        "creator": batch_lead["creator"]["label"],
+                        "type": "RD4D" if is_rd4d else "D4D",
+                        "contact_address": contact_address if contact_address.is_valid else target_address,
+                        "target_address": target_address
+                    }
+                    leads.append(lead)
+
+            after += 100
+        return leads
+
+
 async def test():
-    async with WYANGovClient(logging.getLogger(__name__), width=1920, height=1920) as client:
-        print(await client.get_code_violations())
+    with open('config.json', 'rb') as config_file:
+        master_config = json.load(config_file)
+    testing_logger = logging.Logger(__name__)
+
+    # with DealMachineClient(testing_logger) as client:
+    #     all_leads = client.get_leads()
+    #     print(all_leads)
+    #     with open('leads.json', 'w') as file:
+    #         json.dump(all_leads, file)
+
+    async with WYANGovClient(master_config["chromium_path"], testing_logger, master_config["types_mapping"], width=1920, height=1920) as client:
+        leads = await client.get_code_violations()
+        for index, lead in enumerate(leads):
+            print(lead)
 
 
 if __name__ == "__main__":

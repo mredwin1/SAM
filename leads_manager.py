@@ -105,7 +105,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
     with open(os.path.join(script_dir, 'config.json'), 'rb') as config_file:
         config = json.load(config_file)
 
-    priority_mapping = config["sms_priority_mapping"]
+    priority_mapping = config["types_mapping"]
     sheet_client.open_sheet("Message Templates")
     messages = sheet_client.read_records()
     messages = [message["Message"] for message in messages]
@@ -141,7 +141,13 @@ def queue_messages(sheet_client: GoogleSheetClient):
                 queued_key = f"SMS{message_index}QueuedDateTime"
                 if not_queued_and_phone_present(lead, phone_key, queued_key) and is_delay_met_for_phone(lead, message_index, config):
                     try:
-                        priority = priority_mapping[lead["Type"]]
+                        mapping = [mapping for mapping in priority_mapping if mapping["display_name"] == lead["Type"]]
+
+                        if mapping:
+                            priority = mapping[0]["priority"]
+                        else:
+                            priority = 0
+                            logger.warning(f"No mapping found with display name {lead['Type']}")
                     except KeyError:
                         priority = 0
                         logger.warning(f"Priority not found for \"{lead['Type']}\" lead type")
@@ -165,7 +171,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
     queue_message_sheet_client.sheet.update(message_queue_value, f"A{queue_last_row}")
 
 
-def import_from_deal_machine(sheet_client: GoogleSheetClient):
+def import_from_deal_machine(sheet_client: GoogleSheetClient, config: dict):
     sheet_client.open_sheet('Leads Master')
     target_street_col_num = sheet_client.get_column_index("TargetStreet")
     target_city_col_num = sheet_client.get_column_index("TargetCity")
@@ -185,6 +191,7 @@ def import_from_deal_machine(sheet_client: GoogleSheetClient):
     existing_addresses = [" ".join([existing_lead["TargetStreet"].lower(), existing_lead["TargetCity"].lower(),
                                     existing_lead["TargetState"].lower(), str(existing_lead["TargetZip"])]) for
                           existing_lead in existing_leads]
+    types_mapping = config["types_mapping"]
     now = datetime.datetime.now()
     values = []
     with DealMachineClient(logger) as client:
@@ -194,6 +201,11 @@ def import_from_deal_machine(sheet_client: GoogleSheetClient):
             target_address = lead["target_address"]
             address = " ".join([target_address.street_name.lower(), target_address.city.lower(), target_address.state.lower(), target_address.zip])
             if address not in existing_addresses:
+                try:
+                    lead_type = types_mapping[lead["type"]]["display_name"]
+                except KeyError:
+                    lead_type = "Deal Machine Import"
+
                 lead_values = []
                 lead_values = extend_and_add(lead_values, target_street_col_num - 1, target_address.street_name)
                 lead_values = extend_and_add(lead_values, target_city_col_num - 1, target_address.city)
@@ -204,7 +216,7 @@ def import_from_deal_machine(sheet_client: GoogleSheetClient):
                 lead_values = extend_and_add(lead_values, contact_state_col_num - 1, contact_address.state)
                 lead_values = extend_and_add(lead_values, contact_zip_col_num - 1, contact_address.zip)
                 lead_values = extend_and_add(lead_values, datetime_added_col_num - 1, now.strftime("%m/%d/%Y %H:%M:%S"))
-                lead_values = extend_and_add(lead_values, type_col_num - 1, lead["type"])
+                lead_values = extend_and_add(lead_values, type_col_num - 1, lead_type)
                 lead_values = extend_and_add(lead_values, source_col_num - 1, lead["creator"])
                 existing_addresses.append(address)
                 values.append(lead_values)
@@ -218,6 +230,6 @@ if __name__ == "__main__":
 
     google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
 
-    # import_from_deal_machine(google_sheet_client)
+    import_from_deal_machine(google_sheet_client, master_config)
     # skip_trace(google_sheet_client)
     queue_messages(google_sheet_client)
