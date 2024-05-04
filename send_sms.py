@@ -130,9 +130,9 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                 leads_master_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
                 leads_master_sheet_client.open_sheet("Leads Master")
                 msg_queued_col_numbers = {
-                    1: leads_master_sheet_client.get_column_index("SMS1QueuedDateTime"),
-                    2: leads_master_sheet_client.get_column_index("SMS2QueuedDateTime"),
-                    3: leads_master_sheet_client.get_column_index("SMS3QueuedDateTime"),
+                    1: leads_master_sheet_client.get_column_index("SMS1SentDateTime"),
+                    2: leads_master_sheet_client.get_column_index("SMS2SentDateTime"),
+                    3: leads_master_sheet_client.get_column_index("SMS3SentDateTime"),
                 }
 
                 last_number = get_latest_phone_number(messages)
