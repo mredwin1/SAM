@@ -92,7 +92,7 @@ def not_queued_and_phone_present(lead, phone_key, queued_key):
 
 def is_delay_met_for_phone(lead: dict, message_index: int, config: dict):
     if message_index > 1:
-        previous_queued_key = f"SMS{message_index - 1}QueuedDateTime"
+        previous_queued_key = f"SMS{message_index - 1}SentDateTime"
         if lead[previous_queued_key] != "":
             previous_queued_time = datetime.datetime.strptime(lead[previous_queued_key], "%m/%d/%Y %H:%M:%S")
             return previous_queued_time + datetime.timedelta(days=config["delay_between_messages"]) < datetime.datetime.now()
