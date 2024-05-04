@@ -119,13 +119,12 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
             run_interval = config["leads_manager_run_interval"]
             max_messages_per_day = config["messages_per_hour"] * len(config["numbers_for_send"]) * 12
             chance_to_send_messages = config["chance_to_send"]
-            num_messages_to_send = 1
-            # num_messages_to_send = calculate_msgs_to_send(
-            #     len(messages_to_send),
-            #     max_messages_per_day,
-            #     chance_to_send_messages,
-            #     run_interval
-            # )
+            num_messages_to_send = calculate_msgs_to_send(
+                len(messages_to_send),
+                max_messages_per_day,
+                chance_to_send_messages,
+                run_interval
+            )
             logger.info(f"{len(messages_to_send)} messages in queue and chose to send {num_messages_to_send} right now")
             if num_messages_to_send:
                 leads_master_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
@@ -153,7 +152,7 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
 
                             logger.info(f"Sending \"{message_to_send['message']}\" to {message_to_send['recipient']} from {number_for_sending}")
 
-                            # client.send_sms(f"+{number_for_sending}", message_to_send["recipient"], message_to_send["message"])
+                            client.send_sms(f"+{number_for_sending}", message_to_send["recipient"], message_to_send["message"])
                             time_sent = datetime.datetime.now()
 
                             queued_messages[message_to_send["index"]] = extend_and_add(queued_messages[message_to_send["index"]], time_sent_column_number - 1, time_sent.strftime("%m/%d/%Y %H:%M:%S"))
