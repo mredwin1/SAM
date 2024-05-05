@@ -8,9 +8,9 @@ from clients import GoogleSheetClient, BatchDataClient, DealMachineClient, Batch
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger("leads_manager_logger")
-file_handler = logging.FileHandler("leads_manager.log")
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-logger.addHandler(file_handler)
+# file_handler = logging.FileHandler("leads_manager.log")
+# file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+# logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
 
 
@@ -43,11 +43,12 @@ def skip_trace(sheet_client: GoogleSheetClient):
     skip_trace_result_col_num = sheet_client.get_column_index("SkipTraceSuccess")
 
     leads = sheet_client.read_records()
-    values = []
     with BatchDataClient(logger, os.path.join(script_dir, "config.json")) as client:
+        skip_trace_count = 0
         for index, lead in enumerate(leads):
+            row_num = index + 2
             leads_lst = [value for value in lead.values()]
-            if validate_lead(lead):
+            if validate_lead(lead) and skip_trace_count < 3:
                 try:
                     traced_phone_numbers = client.skip_trace(
                         str(lead["ContactCity"]),
@@ -59,26 +60,27 @@ def skip_trace(sheet_client: GoogleSheetClient):
                     )
 
                     if traced_phone_numbers:
-                        extend_and_add(leads_lst, skip_trace_result_col_num - 1, "TRUE")
+                        leads_lst = extend_and_add(leads_lst, skip_trace_result_col_num - 1, "TRUE")
                         try:
-                            extend_and_add(leads_lst, contact_phone1_col_num - 1, traced_phone_numbers[0])
-                            extend_and_add(leads_lst, contact_phone2_col_num - 1, traced_phone_numbers[1])
-                            extend_and_add(leads_lst, contact_phone3_col_num - 1, traced_phone_numbers[2])
+                            leads_lst = extend_and_add(leads_lst, contact_phone1_col_num - 1, traced_phone_numbers[0])
+                            leads_lst = extend_and_add(leads_lst, contact_phone2_col_num - 1, traced_phone_numbers[1])
+                            leads_lst = extend_and_add(leads_lst, contact_phone3_col_num - 1, traced_phone_numbers[2])
                         except IndexError:
                             pass
                     else:
                         logger.warning(f"No phone numbers found for address: {lead['ContactStreet']} {lead['ContactCity']} {lead['ContactState']} {lead['ContactZip']}")
-                        extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
+                        leads_lst = extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
                 except BatchAPIError as e:
                     logger.warning(e)
                     logger.info("Skip tracing skipped...")
                     break
                 except Exception as e:
                     logger.error(e, exc_info=True)
-                    extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
-            values.append(leads_lst)
-
-    sheet_client.sheet.update(values, "A2")
+                    leads_lst = extend_and_add(leads_lst, skip_trace_result_col_num - 1, "FALSE")
+                skip_trace_count += 1
+                sheet_client.sheet.update([leads_lst], f"A{row_num}")
+            elif skip_trace_count >= 3:
+                break
 
 
 def validate_phones_lead(lead: dict):
