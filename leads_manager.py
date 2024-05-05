@@ -48,7 +48,7 @@ def skip_trace(sheet_client: GoogleSheetClient):
         for index, lead in enumerate(leads):
             row_num = index + 2
             leads_lst = [value for value in lead.values()]
-            if validate_lead(lead) and skip_trace_count < 3:
+            if validate_lead(lead) and skip_trace_count < 5:
                 try:
                     traced_phone_numbers = client.skip_trace(
                         str(lead["ContactCity"]),
