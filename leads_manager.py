@@ -236,5 +236,5 @@ if __name__ == "__main__":
     google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
 
     import_from_deal_machine(google_sheet_client, master_config)
-    skip_trace(google_sheet_client)
+    # skip_trace(google_sheet_client)
     queue_messages(google_sheet_client)
