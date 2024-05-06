@@ -228,7 +228,7 @@ def import_from_deal_machine(sheet_client: GoogleSheetClient, config: dict):
                 existing_addresses.append(address)
                 values.append(lead_values)
         values.append([""])
-        sheet_client.sheet.update(values, f"A{last_row}")
+        sheet_client.sheet.update(values, f"B{last_row}")
 
 
 if __name__ == "__main__":
