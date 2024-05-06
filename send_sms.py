@@ -26,20 +26,23 @@ def extend_and_add(lst, index, value, filler=""):
     return lst
 
 
-def calculate_msgs_to_send(msgs_left: int, daily_quota: int, send_prob: int, interval=3):
-    current_time = datetime.datetime.now()
-    end_time = current_time.replace(hour=20, minute=0, second=0, microsecond=0)
-    mins_left_day = (end_time - current_time).total_seconds() / 60
-    intervals_left = max(int(mins_left_day + interval - 1) // interval, 1)
+def calculate_msgs_to_send(msgs_left: int, send_prob: int, interval=3, current_time: datetime.datetime = None):
+    if not current_time:
+        current_time = datetime.datetime.now()
 
-    # Early exit if not likely to send and there's more than one interval left
-    if random.randint(0, 100) >= send_prob and intervals_left > 1:
-        logger.info("Probability to not send hit!")
-        return 0
+    # Calculate the number of minutes left in the day
+    mins_left = (60 - current_time.minute)
 
-    # Determine the lesser of the messages that can be sent per interval based on remaining messages or quota and no
-    # More than 5 messages ever
-    return min(msgs_left // intervals_left, daily_quota // intervals_left, 5)
+    # Calculate the number of intervals left in the day
+    intervals_left = max(int(mins_left) // interval, 1)
+    max_per_interval = 4
+
+    msgs_to_send = msgs_left // intervals_left
+
+    if intervals_left > 3 and random.random() < .5:
+        msgs_to_send = len([i for i in range(msgs_to_send) if random.randint(0, 100) >= send_prob])
+
+    return min(msgs_to_send, max_per_interval)
 
 
 def get_latest_phone_number(messages):
@@ -117,11 +120,10 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
         available_numbers = [key for key, value in numbers.items() if value < config["messages_per_hour"]]
         if available_numbers:
             run_interval = config["leads_manager_run_interval"]
-            max_messages_per_day = config["messages_per_hour"] * len(config["numbers_for_send"]) * 12
+            max_per_hour = config["messages_per_hour"] * len(config["numbers_for_send"])
             chance_to_send_messages = config["chance_to_send"]
             num_messages_to_send = calculate_msgs_to_send(
-                len(messages_to_send),
-                max_messages_per_day,
+                max_per_hour - sum(numbers.values()),
                 chance_to_send_messages,
                 run_interval
             )
