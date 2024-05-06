@@ -226,6 +226,7 @@ def import_from_deal_machine(sheet_client: GoogleSheetClient, config: dict):
                 lead_values = extend_and_add(lead_values, type_col_num - 1, lead_type)
                 lead_values = extend_and_add(lead_values, source_col_num - 1, lead["creator"])
                 existing_addresses.append(address)
+                lead_values.pop(0)
                 values.append(lead_values)
         values.append([""])
         sheet_client.sheet.update(values, f"B{last_row}")
