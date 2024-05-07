@@ -82,7 +82,7 @@ class AppiumClient:
     def close(self):
         """Closes the appium driver session"""
         if self.driver:
-            self.driver.close_app()
+            self.driver.terminate_app(self.capabilities["appPackage"])
             self.driver.quit()
             self.logger.debug("Driver was quit")
 
