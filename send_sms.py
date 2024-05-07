@@ -168,7 +168,8 @@ def send_messages(sheet_client: GoogleSheetClient, config: dict):
                             numbers[number_for_sending] += 1
                             available_numbers = [key for key, value in numbers.items() if value < config["messages_per_hour"]]
                             last_number = number_for_sending
-                            time.sleep(random.randint(25, 35))
+                            if x != num_messages_to_send - 1:
+                                time.sleep(random.randint(25, 35))
                         except IndexError as e:
                             logger.error(e, exc_info=True)
                         logger.info(f"=========================================================")
