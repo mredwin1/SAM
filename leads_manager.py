@@ -131,6 +131,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
     leads_values = []
     logger.info("Running queue messages")
 
+    queued = False
     for index, lead in enumerate(leads):
         row_num = index + 2
         leads_lst = [value for value in lead.values()]
@@ -162,13 +163,15 @@ def queue_messages(sheet_client: GoogleSheetClient):
                         'Content-Type': 'application/json'
                     }
                     response = requests.post('http://localhost:8000/api/v1/sms/', headers=headers, json=payload)
+                    queued = True
 
                     if response.status_code == 201:
                         extend_and_add(leads_lst, msg_queued_col_numbers[message_index] - 1, time_queued_str)
                         lead[queued_key] = time_queued_str
                     else:
                         logger.error(f"Failed to queue message for lead {row_num}. Status code: {response.status_code}, Response: {response.text}")
-                    break
+            if queued:
+                break
 
         leads_values.append(leads_lst)
 
