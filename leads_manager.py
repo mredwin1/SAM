@@ -230,6 +230,7 @@ def import_from_deal_machine(sheet_client: GoogleSheetClient, config: dict):
 
 
 if __name__ == "__main__":
+    logger.info("TEST")
     with open(os.path.join(script_dir, 'config.json'), 'rb') as config_file:
         master_config = json.load(config_file)
 
