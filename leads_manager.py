@@ -162,7 +162,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
                         'accept': 'application/json',
                         'Content-Type': 'application/json'
                     }
-                    response = requests.post('http://localhost:8000/api/v1/sms/', headers=headers, json=payload)
+                    response = requests.post('http://localhost:4723/api/v1/sms/', headers=headers, json=payload)
                     queued = True
 
                     if response.status_code == 201:
