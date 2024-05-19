@@ -9,9 +9,9 @@ from clients import GoogleSheetClient, BatchDataClient, DealMachineClient, Batch
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger("leads_manager_logger")
-# file_handler = logging.FileHandler("leads_manager.log")
-# file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-# logger.addHandler(file_handler)
+file_handler = logging.FileHandler("leads_manager.log")
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
 
 
