@@ -148,7 +148,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
                     except KeyError:
                         priority = 0
                         logger.warning(f"Priority not found for \"{lead['Type']}\" lead type")
-
+                    logger.info("Queuing sms")
                     message = random.choice(messages).replace("{TargetStreet}", lead["TargetStreet"])
                     payload = {
                         # "recipient": f"+1{lead[phone_key]}",
@@ -234,6 +234,6 @@ if __name__ == "__main__":
 
     google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
 
-    import_from_deal_machine(google_sheet_client, master_config)
+    # import_from_deal_machine(google_sheet_client, master_config)
     # skip_trace(google_sheet_client)
     queue_messages(google_sheet_client)
