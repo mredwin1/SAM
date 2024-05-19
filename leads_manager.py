@@ -168,9 +168,9 @@ def queue_messages(sheet_client: GoogleSheetClient):
                         lead[queued_key] = time_queued_str
                     else:
                         logger.error(f"Failed to queue message for lead {row_num}. Status code: {response.status_code}, Response: {response.text}")
+            break
 
         leads_values.append(leads_lst)
-        break
 
     sheet_client.sheet.update(leads_values, "A2")
 
