@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import random
+import requests
 
 from clients import GoogleSheetClient, BatchDataClient, DealMachineClient, BatchAPIError
 
@@ -118,18 +119,8 @@ def queue_messages(sheet_client: GoogleSheetClient):
     messages = [message["Message"] for message in messages]
 
     sheet_client.open_sheet("Leads Master")
-
     leads = sheet_client.read_records()
 
-    queue_message_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
-    queue_message_sheet_client.open_sheet("Message Queue")
-    queue_last_row = queue_message_sheet_client.get_last_row()
-    message_col_num = queue_message_sheet_client.get_column_index("Message")
-    recipient_col_num = queue_message_sheet_client.get_column_index("Recipient")
-    time_queued_col_num = queue_message_sheet_client.get_column_index("DateTimeQueued")
-    priority_col_num = queue_message_sheet_client.get_column_index("Priority")
-    row_num_col_num = queue_message_sheet_client.get_column_index("LeadRowNum")
-    phone_num_index_col_num = queue_message_sheet_client.get_column_index("PhoneNumIndex")
     now = datetime.datetime.now()
     time_queued_str = now.strftime("%m/%d/%Y %H:%M:%S")
     msg_queued_col_numbers = {
@@ -138,7 +129,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
         3: sheet_client.get_column_index("SMS3QueuedDateTime"),
     }
     leads_values = []
-    message_queue_value = []
+
     for index, lead in enumerate(leads):
         row_num = index + 2
         leads_lst = [value for value in lead.values()]
@@ -149,7 +140,6 @@ def queue_messages(sheet_client: GoogleSheetClient):
                 if not_queued_and_phone_present(lead, phone_key, queued_key) and is_delay_met_for_phone(lead, message_index, config):
                     try:
                         mapping = [mapping for mapping in priority_mapping.values() if mapping["display_name"] == lead["Type"]]
-
                         if mapping:
                             priority = mapping[0]["priority"]
                         else:
@@ -159,23 +149,29 @@ def queue_messages(sheet_client: GoogleSheetClient):
                         priority = 0
                         logger.warning(f"Priority not found for \"{lead['Type']}\" lead type")
 
-                    message_queue_lst = []
                     message = random.choice(messages).replace("{TargetStreet}", lead["TargetStreet"])
-                    extend_and_add(message_queue_lst, message_col_num - 1, message)
-                    extend_and_add(message_queue_lst, recipient_col_num - 1, lead[phone_key])
-                    extend_and_add(message_queue_lst, time_queued_col_num - 1, time_queued_str)
-                    extend_and_add(message_queue_lst, priority_col_num - 1, priority)
-                    extend_and_add(message_queue_lst, row_num_col_num - 1, row_num)
-                    extend_and_add(message_queue_lst, phone_num_index_col_num - 1, message_index)
-                    extend_and_add(leads_lst, msg_queued_col_numbers[message_index] - 1, time_queued_str)
+                    payload = {
+                        # "recipient": f"+1{lead[phone_key]}",
+                        "recipient": f"+14076928032",
+                        "message": message,
+                        "priority": priority
+                    }
+                    headers = {
+                        'accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                    response = requests.post('http://localhost:8000/api/v1/sms/', headers=headers, json=payload)
 
-                    lead[queued_key] = time_queued_str
-                    message_queue_value.append(message_queue_lst)
+                    if response.status_code == 201:
+                        extend_and_add(leads_lst, msg_queued_col_numbers[message_index] - 1, time_queued_str)
+                        lead[queued_key] = time_queued_str
+                    else:
+                        logger.error(f"Failed to queue message for lead {row_num}. Status code: {response.status_code}, Response: {response.text}")
 
         leads_values.append(leads_lst)
+        break
+
     sheet_client.sheet.update(leads_values, "A2")
-    message_queue_value.append([""])
-    queue_message_sheet_client.sheet.update(message_queue_value, f"A{queue_last_row}")
 
 
 def import_from_deal_machine(sheet_client: GoogleSheetClient, config: dict):
@@ -240,4 +236,4 @@ if __name__ == "__main__":
 
     import_from_deal_machine(google_sheet_client, master_config)
     # skip_trace(google_sheet_client)
-    queue_messages(google_sheet_client)
+    # queue_messages(google_sheet_client)
