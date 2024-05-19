@@ -166,6 +166,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
                     queued = True
 
                     if response.status_code == 201:
+                        logger.info(response.content)
                         extend_and_add(leads_lst, msg_queued_col_numbers[message_index] - 1, time_queued_str)
                         lead[queued_key] = time_queued_str
                     else:
