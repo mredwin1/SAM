@@ -129,6 +129,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
         3: sheet_client.get_column_index("SMS3QueuedDateTime"),
     }
     leads_values = []
+    logger.info("Running queue messages")
 
     for index, lead in enumerate(leads):
         row_num = index + 2
