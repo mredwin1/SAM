@@ -130,7 +130,6 @@ def queue_messages(sheet_client: GoogleSheetClient):
     }
     leads_values = []
     logger.info("Running queue messages")
-    max_per_run = 10
 
     for index, lead in enumerate(leads):
         row_num = index + 2
@@ -162,7 +161,6 @@ def queue_messages(sheet_client: GoogleSheetClient):
                         'Content-Type': 'application/json'
                     }
                     response = requests.post('http://localhost:4723/api/v1/sms/', headers=headers, json=payload)
-                    max_per_run -= 1
 
                     if response.status_code == 201:
                         logger.info(response.content)
@@ -172,9 +170,6 @@ def queue_messages(sheet_client: GoogleSheetClient):
                         logger.error(f"Failed to queue message for lead {row_num}. Status code: {response.status_code}, Response: {response.text}")
 
         leads_values.append(leads_lst)
-
-        if max_per_run == 0:
-            break
 
     sheet_client.sheet.update(leads_values, "A2")
 
@@ -240,6 +235,6 @@ if __name__ == "__main__":
 
     google_sheet_client = GoogleSheetClient(os.path.join(script_dir, "credentials-file.json"), "SAM", logger)
 
-    # import_from_deal_machine(google_sheet_client, master_config)
+    import_from_deal_machine(google_sheet_client, master_config)
     # skip_trace(google_sheet_client)
     queue_messages(google_sheet_client)
