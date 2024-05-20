@@ -131,7 +131,6 @@ def queue_messages(sheet_client: GoogleSheetClient):
     leads_values = []
     logger.info("Running queue messages")
 
-    queued = False
     for index, lead in enumerate(leads):
         row_num = index + 2
         leads_lst = [value for value in lead.values()]
@@ -153,8 +152,7 @@ def queue_messages(sheet_client: GoogleSheetClient):
                     logger.info("Queuing sms")
                     message = random.choice(messages).replace("{TargetStreet}", lead["TargetStreet"])
                     payload = {
-                        # "recipient": f"+1{lead[phone_key]}",
-                        "recipient": f"+14076928032",
+                        "recipient": f"+1{lead[phone_key]}",
                         "message": message,
                         "priority": priority
                     }
@@ -163,7 +161,6 @@ def queue_messages(sheet_client: GoogleSheetClient):
                         'Content-Type': 'application/json'
                     }
                     response = requests.post('http://localhost:4723/api/v1/sms/', headers=headers, json=payload)
-                    queued = True
 
                     if response.status_code == 201:
                         logger.info(response.content)
@@ -171,8 +168,6 @@ def queue_messages(sheet_client: GoogleSheetClient):
                         lead[queued_key] = time_queued_str
                     else:
                         logger.error(f"Failed to queue message for lead {row_num}. Status code: {response.status_code}, Response: {response.text}")
-            if queued:
-                break
 
         leads_values.append(leads_lst)
 
